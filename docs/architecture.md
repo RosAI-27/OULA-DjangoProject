@@ -131,7 +131,25 @@ Begin with descriptive analysis and clearly defined indicators. If prediction is
 - report class-wise metrics and limitations, not accuracy alone;
 - interpret risk indicators as uncertain signals, not definitive judgements about individual students.
 
-## 8. Repository and privacy practices
+## 8. Assignment MVP and interpretation rules
+
+The professor's required MVP is:
+
+1. **Pass rate by course:** define the denominator explicitly. A sensible first definition is students with a final outcome of Pass or Distinction divided by students with a completed, non-withdrawn outcome; report the withdrawal rate separately so excluding withdrawals does not hide them.
+2. **Engagement/results relationship:** aggregate `sum_click` at the student-enrolment level, then compare engagement indicators with assessment scores and/or final outcomes. Start with descriptive summaries and correlation; correlation does not establish that engagement causes success.
+3. **At-risk segments:** begin with transparent, documented rules or descriptive segments (for example, low recent activity relative to the course timeline, alongside weak or missing assessment results). Show the criteria and coverage, and do not label a student as certainly dropping out.
+4. **DRF API and dashboard:** expose tested, aggregated outputs from the backend before building dashboard charts.
+
+### Agentic component (after the analytics are trustworthy)
+
+The agent should answer scoped questions such as: “Which students in course X show signs of disengagement, and since when?” Its response must be grounded in queryable interaction records or derived indicators and explain the evidence (for example, last recorded activity day and a change in weekly click totals).
+
+- Treat `studentVle.date` and assessment dates as day offsets on the module-presentation timeline, not calendar dates.
+- Distinguish “no recorded interaction” from “confirmed disengagement”; activity data alone may be incomplete.
+- Use only information available up to the stated observation date when describing early-warning signals.
+- Return the criteria, evidence window, and relevant dates with the answer. The agent must not invent causes or claim certainty.
+- Keep the agent read-only for the MVP; it should not make decisions about students or modify records.
+## 9. Repository and privacy practices
 
 - Keep original data under `data/raw/` locally, but excluded from Git by default.
 - Keep generated outputs under `data/processed/`, and commit only small, non-sensitive, permitted artifacts.
@@ -140,9 +158,9 @@ Begin with descriptive analysis and clearly defined indicators. If prediction is
 - Document dataset attribution and licence in the final project report.
 - Keep `main` reviewable and collaborate using feature branches and pull requests.
 
-## 9. Next implementation milestone
+## 10. Next implementation milestone
 
-Before writing model code, confirm the professor's exact required fields/relationships and inspect the actual Kaggle archive. Then implement:
+With the professor's brief now confirmed, inspect the actual downloaded archive and validate the proposed model fields/relationships against it. Then implement:
 1. data inspection report and data dictionary;
 2. reproducible preparation/validation scripts;
 3. Django project and app;
