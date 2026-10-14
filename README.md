@@ -22,10 +22,20 @@ See [the architecture](docs/architecture.md) and [the initial data dictionary](d
 
 - `Etudiant` — student enrolment record in a module presentation, based on `studentInfo.csv`; registration dates are available in `studentRegistration.csv`.
 - `Cours` — module presentation from `courses.csv`.
-- `Evaluation` — student assessment result from `studentAssessment.csv), linked to assessment metadata in `assessments.csv`.
-- `Interaction` — daily student clicks on a VLE resource from `studentVle.csv), with resource metadata in `vle.csv`.
+- `Evaluation` — student assessment result from `studentAssessment.csv`, linked to assessment metadata in `assessments.csv`.
+- `Interaction` — daily student clicks on a VLE resource from `studentVle.csv`, with resource metadata in `vle.csv`.
 
 Exact fields, constraints, and relationships must be checked against the professor's assignment sheet and the downloaded archive before migrations are created.
+
+## Required MVP
+
+The professor's brief requires:
+
+- **Django models:** `Etudiant`, `Cours`, `Evaluation`, `Interaction`.
+- **DRF API and dashboard:** pass rate by course, engagement/results relationship, and at-risk student segments.
+- **Agentic component:** answer questions about possible disengagement, including when warning signs appeared, with justification grounded in interaction data.
+
+Risk indicators must be explainable and uncertain, not treated as definitive judgments. “No recorded interaction” is not automatically proof of disengagement. See [architecture and interpretation rules](docs/architecture.md#assignment-mvp-and-interpretation-rules).
 
 ## Planned workflow
 
