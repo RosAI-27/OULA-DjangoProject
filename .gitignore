@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+.venv/
+venv/
+env/
+ENV/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Django
+*.log
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data files (keep folder structure using .gitkeep)
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+
+# Model artifacts
+*.pkl
+*.joblib
+*.h5
+*.keras
+*.pt
+*.pth
+
+# Editors / operating systems
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

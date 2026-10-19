@@ -1,0 +1,10 @@
+# Initial backend dependencies. Pin exact versions after confirming the local Python version.
+Django>=5.2,<5.3
+djangorestframework>=3.16,<3.17
+
+# Data preparation
+pandas>=2.2,<3.0
+numpy>=2.0,<3.0
+
+# Environment configuration
+python-dotenv>=1.0,<2.0
