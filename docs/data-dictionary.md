@@ -14,7 +14,7 @@ Use the following names consistently in Django code, API responses, tests, and p
 | `AssessmentResult` | One student's submission/result for an assessment | `studentAssessment.csv`, joined with `assessments.csv` |
 | `Interaction` | A student's recorded clicks on a VLE resource on a relative day | `studentVle.csv`, enriched with `vle.csv` |
 
-`Enrollment` is an additional proposed model, not a replacement for the four assignment concepts. Confirm this extension against the assignment sheet before migrations are created.
+`Enrollment` is included as the fifth domain model alongside the four core concepts.
 
 ## Identifier conventions
 
