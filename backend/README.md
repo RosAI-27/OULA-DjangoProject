@@ -12,6 +12,6 @@ The Django project and domain application(s) will be initialized here after conf
 - API endpoints after the domain layer is stable
 - Application-level tests
 
-The four required assignment concepts remain represented. `Enrollment` is proposed because OULAD records course participation at student-module-presentation grain; confirm it is acceptable under the professor's brief before creating migrations.
+The five planned domain models are `Student`, `CoursePresentation`, `Enrollment`, `AssessmentResult`, and `Interaction`. `Enrollment` represents participation at student-module-presentation grain.
 
 This folder is an architectural placeholder; the Django project has not yet been generated.
