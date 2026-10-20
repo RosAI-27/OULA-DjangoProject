@@ -6,7 +6,7 @@ OULA is a student-success analytics project built with Django using the Open Uni
 
 **Stage:** Architecture and repository setup. The Django application and database models have not yet been implemented.
 
-The professor's four core model names take priority: `Etudiant`, `Cours`, `Evaluation`, and `Interaction`.
+The four assignment concepts use English model names: `Student`, `Course`, `AssessmentResult`, and `StudentInteraction`. We will also use `Enrollment` as a fifth model because a student can enrol in multiple module presentations and enrolment-specific fields belong to that relationship.
 
 ## Dataset
 
@@ -14,18 +14,19 @@ Source: [Kaggle — Open University Learning Analytics Dataset](https://www.kagg
 
 OULAD contains seven related CSV files: `studentInfo.csv`, `studentRegistration.csv`, `courses.csv`, `assessments.csv`, `studentAssessment.csv`, `vle.csv`, and `studentVle.csv`.
 
-A key modelling detail: `Cours` means a **module presentation**, identified by the pair `code_module` + `code_presentation`. A student may be enrolled in multiple module presentations. The interaction table `studentVle.csv` contains roughly 10.6 million rows, so it must be inspected and processed carefully rather than blindly loaded into Django ORM objects.
+A key modelling detail: `Course` means a **module presentation**, identified by the pair `code_module` + `code_presentation`. A student may be enrolled in multiple module presentations. The interaction table `studentVle.csv` contains roughly 10.6 million rows, so it must be inspected and processed carefully rather than blindly loaded into Django ORM objects.
 
 See [the architecture](docs/architecture.md) and [the initial data dictionary](docs/data-dictionary.md) for the proposed mapping and validation plan.
 
 ## Core domain models
 
-- `Etudiant` — student enrolment record in a module presentation, based on `studentInfo.csv`; registration dates are available in `studentRegistration.csv`.
-- `Cours` — module presentation from `courses.csv`.
-- `Evaluation` — student assessment result from `studentAssessment.csv`, linked to assessment metadata in `assessments.csv`.
-- `Interaction` — daily student clicks on a VLE resource from `studentVle.csv`, with resource metadata in `vle.csv`.
+- `Student` — the anonymised person identified by `id_student`, with stable person-level characteristics.
+- `Course` — a module presentation from `courses.csv`, uniquely identified by `code_module` + `code_presentation`.
+- `Enrollment` — one student's enrolment in one course presentation; stores enrolment-specific details and final outcome from `studentInfo.csv` and registration dates from `studentRegistration.csv`.
+- `AssessmentResult` — a student's assessment result from `studentAssessment.csv`, linked to assessment metadata in `assessments.csv` and the relevant `Enrollment`.
+- `StudentInteraction` — daily student clicks on a VLE resource from `studentVle.csv`, linked to the relevant `Enrollment`.
 
-Exact fields, constraints, and relationships must be checked against the professor's assignment sheet and the downloaded archive before migrations are created.
+Exact fields, constraints, and relationships must be checked against the professor's assignment sheet and the downloaded archive before migrations are created. The source-data grain and missing-value audit are documented in the architecture and data-quality notes.
 
 ## Required MVP
 
