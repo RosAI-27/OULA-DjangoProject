@@ -6,7 +6,7 @@ OULA is a student-success analytics project built with Django using the Open Uni
 
 **Stage:** Architecture and repository setup. The Django application and database models have not yet been implemented.
 
-The professor's four core concepts are documented with consistent English names: `Student`, `CoursePresentation`, `AssessmentResult`, and `Interaction`. The proposed schema also includes `Enrollment`, because a person and that person's registration in a specific course presentation are different entities in OULAD. This additional model should be checked against the professor's assignment requirements before migrations are created.
+The project uses consistent English names for its five domain models: `Student`, `CoursePresentation`, `Enrollment`, `AssessmentResult`, and `Interaction`. `Enrollment` separates a person from their registration in a specific course presentation.
 
 ## Dataset
 
