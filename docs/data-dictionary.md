@@ -1,6 +1,20 @@
 # OULAD Source Data Dictionary (Initial)
 
-This is a starting reference based on the published OULAD schema. Confirm all columns and row counts against the exact archive downloaded from the project’s Kaggle source before coding or reporting results.
+This is a starting reference based on the published OULAD schema. Confirm all columns and row counts against the exact archive downloaded from the project's Kaggle source before coding or reporting results.
+
+## English domain model mapping
+
+Use the following names consistently in Django code, API responses, tests, and project documentation:
+
+| Domain model | Meaning | Main source |
+|---|---|---|
+| `Student` | A person identified by `id_student` | `studentInfo.csv` (validate repeated characteristics across enrolments) |
+| `CoursePresentation` | One module offering identified by `code_module` + `code_presentation` | `courses.csv` |
+| `Enrollment` | One student's registration in one course presentation | `studentInfo.csv`, `studentRegistration.csv` |
+| `AssessmentResult` | One student's submission/result for an assessment | `studentAssessment.csv`, joined with `assessments.csv` |
+| `Interaction` | A student's recorded clicks on a VLE resource on a relative day | `studentVle.csv`, enriched with `vle.csv` |
+
+`Enrollment` is an additional proposed model, not a replacement for the four assignment concepts. Confirm this extension against the assignment sheet before migrations are created.
 
 ## Identifier conventions
 
