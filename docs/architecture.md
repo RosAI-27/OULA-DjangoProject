@@ -47,7 +47,7 @@ Student 1 ─── many Enrollment many ─── 1 CoursePresentation
                      └── Interaction
 ```
 
-This is a proposed refinement of the professor's four required concepts, not a replacement for them. Keep `Student`, `CoursePresentation`, `AssessmentResult`, and `Interaction` as the core concepts, and confirm that the additional `Enrollment` model is acceptable under the assignment brief before migrations are created.
+We will implement `Enrollment` as the fifth domain model alongside the four core concepts. This preserves the distinction between a person and their participation in a specific course presentation.
 
 ## 4. Proposed core models and source mapping
 
