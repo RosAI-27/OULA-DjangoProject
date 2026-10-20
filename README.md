@@ -32,7 +32,7 @@ Exact fields, constraints, and relationships must be checked against the profess
 
 The professor's brief requires:
 
-- **Django models:** `Etudiant`, `Cours`, `Evaluation`, `Interaction`.
+- **Django models:** `Student`, `Course`, `Enrollment`, `AssessmentResult`, `StudentInteraction`.
 - **DRF API and dashboard:** pass rate by course, engagement/results relationship, and at-risk student segments.
 - **Agentic component:** answer questions about possible disengagement, including when warning signs appeared, with justification grounded in interaction data.
 
