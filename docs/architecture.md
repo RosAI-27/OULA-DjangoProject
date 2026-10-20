@@ -24,23 +24,13 @@ The data describes student enrolments in module presentations, not just one demo
 
 ## 3. Required core Django models
 
-The professor's four required model names are preserved: `Etudiant`, `Cours`, `Evaluation`, and `Interaction`. Their exact fields should be reconciled with the professor's assignment sheet before migrations are committed.
+The four assignment concepts use English Django model names: `Student`, `Course`, `AssessmentResult`, and `StudentInteraction`. We will also add `Enrollment` as a fifth model because the dataset's natural grain is a student enrolled in a particular module presentation. `Enrollment` connects `Student` and `Course` and stores attributes/outcomes that belong to that specific enrolment. Confirm the final naming against the assignment sheet before migrations.
 
-### Etudiant
+### Student
 
-Represents a student's enrolment in a particular module presentation, using the grain represented by `studentInfo.csv`.
+Represents the anonymised person identified by `id_student`. Keep person-level characteristics here only when the source supports treating them as stable across enrolments, such as `gender`, `region`, `highest_education`, `imd_band`, and `disability`. The source audit found 72 students whose `age_band` varies across enrolments, so do not store `age_band` as a permanent Student attribute.
 
-Candidate fields from `studentInfo.csv`:
-- `id_student`
-- `code_module`, `code_presentation`
-- `gender`, `region`, `highest_education`, `imd_band`, `age_band`
-- `num_of_prev_attempts`, `studied_credits`, `disability`, `final_result`
-
-Registration dates are in `studentRegistration.csv`: `date_registration` and `date_unregistration`. They can be incorporated into Etudiant when importing data, or handled separately if the assignment requires a normalized schema.
-
-Avoid treating `id_student` by itself as the primary key of an enrolment row. The student may take multiple module presentations.
-
-### Cours
+### Course
 
 Represents a **module presentation**. Candidate fields:
 - `code_module`
@@ -49,17 +39,19 @@ Represents a **module presentation**. Candidate fields:
 
 Use the composite natural key `(code_module, code_presentation)` for matching the source data. Django may use its normal surrogate primary key while enforcing a unique constraint on these two fields.
 
-### Evaluation
+### Enrollment
 
-Represents an individual student's assessment result, joining the assessment metadata in `assessments.csv` with submissions/results in `studentAssessment.csv`.
+Represents one student's enrolment in one module presentation, at the grain of `studentInfo.csv` joined with `studentRegistration.csv`. It links one `Student` to one `Course` and stores enrolment-specific fields: `age_band`, `num_of_prev_attempts`, `studied_credits`, `final_result`, `date_registration`, and `date_unregistration`. Enforce uniqueness on `(student, course)`. Registration dates are relative day offsets, not calendar dates; preserve missing values.
 
-Assessment metadata includes `id_assessment`, `assessment_type`, `date`, and `weight`. Student submissions include `id_assessment`, `id_student`, `date_submitted`, `is_banked`, and `score`.
+This separation matters because the same person may enrol in multiple module presentations, and some fields can vary across those enrolments. It also avoids incorrectly treating `id_student` alone as the primary key of an enrolment row.
 
-The assessment's module presentation must be resolved through the assessment metadata; do not join only on `id_student` or assume that every student submitted every assessment. Missing submissions and missing scores need explicit treatment.
+### AssessmentResult
 
-### Interaction
+Represents an individual student's assessment result, joining assessment metadata in `assessments.csv` with submissions/results in `studentAssessment.csv`. Assessment metadata includes `id_assessment`, `assessment_type`, `date`, and `weight`; submissions include `id_assessment`, `id_student`, `date_submitted`, `is_banked`, and `score`. Link each result to the appropriate `Enrollment`, and validate that the assessment belongs to the same module presentation as the enrolment. Do not assume every student submitted every assessment. Missing submissions and missing scores need explicit treatment.
 
-Represents a student's interaction with a VLE resource on a particular day. `studentVle.csv` contains `code_module`, `code_presentation`, `id_student`, `id_site`, `date`, and `sum_click`.
+### StudentInteraction
+
+Represents a student's interaction with a VLE resource on a particular day. `studentVle.csv` contains `code_module`, `code_presentation`, `id_student`, `id_site`, `date`, and `sum_click`. Link it to `Enrollment`, and preserve the grain `(enrollment, id_site, date)` after aggregation.
 
 Resource metadata in `vle.csv` includes `id_site`, module/presentation identifiers, `activity_type`, `week_from`, and `week_to`.
 
@@ -69,15 +61,15 @@ Resource metadata in `vle.csv` includes `id_site`, module/presentation identifie
 
 | CSV | Role | Core model / use |
 |---|---|---|
-| `studentInfo.csv` | Student characteristics and final outcome per module presentation | Etudiant |
-| `studentRegistration.csv` | Registration and unregistration dates | Enrich Etudiant / validation |
-| `courses.csv` | Module presentation metadata | Cours |
-| `assessments.csv` | Assessment definitions, dates, types and weights | Enrich Evaluation |
-| `studentAssessment.csv` | Student submissions and scores | Evaluation |
+| `studentInfo.csv` | Student characteristics and final outcome per module presentation | Student + Enrollment |
+| `studentRegistration.csv` | Registration and unregistration dates | Enrich Enrollment / validation |
+| `courses.csv` | Module presentation metadata | Course |
+| `assessments.csv` | Assessment definitions, dates, types and weights | Enrich AssessmentResult |
+| `studentAssessment.csv` | Student submissions and scores | AssessmentResult |
 | `vle.csv` | VLE resource metadata | Enrich Interaction |
-| `studentVle.csv` | Daily student-resource clicks | Interaction / interaction aggregation |
+| `studentVle.csv` | Daily student-resource clicks | StudentInteraction / interaction aggregation |
 
-These seven source tables do not mean we must create seven Django models. The four course-required models are the required application boundary. Additional models should be introduced only if the professor's specification or a demonstrated integrity requirement justifies them.
+These seven source tables do not mean we must create seven Django models. We keep the four assignment concepts (`Student`, `Course`, `AssessmentResult`, `StudentInteraction`) and add `Enrollment` because it represents a necessary relationship/grain in the source data. This is a justified fifth model, not a one-model-per-CSV design.
 
 ## 5. Proposed layers
 
@@ -94,7 +86,7 @@ Reproducible Python preparation scripts
 Validated import / aggregation
           |
           v
-Django models: Etudiant, Cours, Evaluation, Interaction
+Django models: Student, Course, Enrollment, AssessmentResult, StudentInteraction
           |
           +----> Django admin and model tests
           |
@@ -164,7 +156,7 @@ With the professor's brief now confirmed, inspect the actual downloaded archive 
 1. data inspection report and data dictionary;
 2. reproducible preparation/validation scripts;
 3. Django project and app;
-4. four core models, migrations, admin registration, and tests;
+4. five domain models (`Student`, `Course`, `Enrollment`, `AssessmentResult`, `StudentInteraction`), migrations, admin registration, and tests;
 5. a controlled import command.
 
 The architecture is based on the documented OULAD tables; exact nullability, constraints, and import strategy must be validated against the downloaded files and the assignment sheet.
