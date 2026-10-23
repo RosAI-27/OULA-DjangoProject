@@ -1,6 +1,6 @@
-# OULAD Source Data Dictionary (Initial)
+# OULAD Source Data Dictionary
 
-This is a starting reference based on the published OULAD schema. Confirm all columns and row counts against the exact archive downloaded from the project’s Kaggle source before coding or reporting results.
+This reference summarizes the seven CSV tables in the OULAD archive used for the project. The row counts and data-quality findings recorded in [data-quality.md](data-quality.md) come from the downloaded project archive; rerun the audit if the archive changes.
 
 ## Identifier conventions
 
@@ -9,68 +9,74 @@ This is a starting reference based on the published OULAD schema. Confirm all co
 | `code_module` | Module identifier | Not unique across presentations by itself |
 | `code_presentation` | Module presentation/run | Pair with `code_module` |
 | `id_student` | Anonymised student identifier | One student may have several module enrolments |
-| `id_assessment` | Assessment identifier | Join assessment definitions to submissions |
-| `id_site` | VLE resource identifier | Identifies learning material in VLE metadata |
+| `id_assessment` | Assessment identifier | Resolve assessment metadata before attaching a result to an enrolment |
+| `id_site` | VLE resource identifier | Resource IDs must be interpreted with module/presentation context |
 
-## Source files
+## Source files and grain
 
 ### `studentInfo.csv`
 
-Common documented columns: `code_module`, `code_presentation`, `id_student`, `gender`, `region`, `highest_education`, `imd_band`, `age_band`, `num_of_prev_attempts`, `studied_credits`, `disability`, `final_result`.
+Columns: `code_module`, `code_presentation`, `id_student`, `gender`, `region`, `highest_education`, `imd_band`, `age_band`, `num_of_prev_attempts`, `studied_credits`, `disability`, `final_result`.
 
-Grain: one student-module-presentation record. `final_result` contains the recorded final outcome (commonly Pass, Fail, Distinction, or Withdrawn). This outcome should not be used as an input feature when predicting that same outcome.
+Grain: one student-module-presentation record. The outcome is commonly Pass, Fail, Distinction, or Withdrawn. It must not be used as a predictor for an earlier warning or for predicting that same outcome.
 
 ### `studentRegistration.csv`
 
-Common documented columns: `code_module`, `code_presentation`, `id_student`, `date_registration`, `date_unregistration`.
+Columns: `code_module`, `code_presentation`, `id_student`, `date_registration`, `date_unregistration`.
 
-Grain: registration record for a student in a module presentation. Dates are numeric offsets relative to the module presentation timeline, not calendar dates.
+Grain: registration record for a student in a module presentation. Dates are offsets relative to the module-presentation timeline, not calendar dates. Missing registration/unregistration values must retain their meaning.
 
 ### `courses.csv`
 
-Common documented columns: `code_module`, `code_presentation`, `module_presentation_length`.
+Columns: `code_module`, `code_presentation`, `module_presentation_length`.
 
-Grain: one module presentation. The natural matching key is `(code_module, code_presentation)`.
+Grain: one module presentation. Natural matching key: `(code_module, code_presentation)`.
 
 ### `assessments.csv`
 
-Common documented columns: `code_module`, `code_presentation`, `id_assessment`, `assessment_type`, `date`, `weight`.
+Columns: `code_module`, `code_presentation`, `id_assessment`, `assessment_type`, `date`, `weight`.
 
-Grain: one assessment definition. The assessment date is generally an offset in days from the module presentation start.
+Grain: one assessment definition. Assessment dates are day offsets; 11 missing assessment dates in the audited archive were exams.
 
 ### `studentAssessment.csv`
 
-Common documented columns: `id_assessment`, `id_student`, `date_submitted`, `is_banked`, `score`.
+Columns: `id_assessment`, `id_student`, `date_submitted`, `is_banked`, `score`.
 
-Grain: one recorded student assessment submission/result. Not every student has a row for every assessment. Scores are typically on a 0–100 scale; missing scores must be investigated, not automatically imputed.
+Grain: one recorded student assessment submission/result. Not every student has a row for every assessment. The audit found 173 missing scores, all associated with TMA records; a missing score is not automatically zero. Scores in the audited archive were within the expected 0–100 range.
 
 ### `vle.csv`
 
-Common documented columns: `id_site`, `code_module`, `code_presentation`, `activity_type`, `week_from`, `week_to`.
+Columns: `id_site`, `code_module`, `code_presentation`, `activity_type`, `week_from`, `week_to`.
 
-Grain: one VLE resource within a module presentation. Resource identifiers and metadata should be validated before joining.
+Grain: one VLE resource within a module presentation. Validate the resource's module/presentation context when joining.
 
 ### `studentVle.csv`
 
-Common documented columns: `code_module`, `code_presentation`, `id_student`, `id_site`, `date`, `sum_click`.
+Columns: `code_module`, `code_presentation`, `id_student`, `id_site`, `date`, `sum_click`.
 
-Grain: a student's clicks on a resource on a day. The published dataset contains approximately 10.6 million rows. Treat it as a large event table; use chunked processing or documented aggregation for exploratory analytics and avoid naive ORM bulk insertion.
+Raw grain: student-resource-day observations within a module presentation. The audited archive has 10,655,280 rows. Preparation removes only exact duplicate rows and then aggregates by `(code_module, code_presentation, id_student, id_site, date)), summing `sum_click` into `total_clicks`. This produces 8,459,320 interaction rows; see [data-quality.md](data-quality.md).
 
-## Join plan to validate
+## Join and integrity rules
 
-- `studentInfo` ↔ `studentRegistration`: `code_module`, `code_presentation`, `id_student`
-- `studentInfo` ↔ `studentAssessment`: use `id_student` together with assessment/module-presentation context; do not join by student ID alone if that would mix enrolments
-- `studentAssessment` ↔ `assessments`: `id_assessment`
-- `studentInfo` ↔ `courses`: `code_module`, `code_presentation`
-- `studentVle` ↔ `vle`: `id_site` plus module/presentation context where applicable
-- `studentVle` ↔ `studentInfo`: `id_student`, `code_module`, `code_presentation`
+- `studentInfo` ↔ `studentRegistration`: `code_module`, `code_presentation`, `id_student`.
+- `studentAssessment` ↔ `assessments`: `id_assessment`; use the assessment definition's module/presentation to verify the result belongs to the same enrolment.
+- `studentInfo` ↔ `courses`: `code_module`, `code_presentation`.
+- `studentVle` ↔ `vle`: match `id_site` and validate module/presentation context.
+- `studentVle` ↔ `studentInfo`: `id_student`, `code_module`, `code_presentation`.
 
-## Validation checklist
+Do not join student-level results on `id_student` alone when that could mix course presentations. Preserve the distinction between a person and one enrolment in one module presentation.
 
-- [ ] Verify exact file names and columns from the archive.
-- [ ] Compare source row counts with expected documented counts.
-- [ ] Check uniqueness at each table's true grain.
-- [ ] Check missingness and sentinel values (for example, `-1` date offsets if present).
-- [ ] Check orphaned foreign keys before loading.
-- [ ] Document how withdrawn students and missing assessment scores are represented.
-- [ ] Keep raw files unchanged and excluded from Git.
+## Implementation mapping
+
+The development Django design currently maps the source into `Student`, `Course`, `Enrollment`, `Assessment`, and `Interaction`. This is a five-model design, not a one-model-per-CSV design. See [architecture.md](architecture.md) for the current design trade-off around storing assessment definition metadata on each result row.
+
+## Remaining validation
+
+Before treating the full import as reproducible from the repository, ensure the backend implementation is committed and automated checks cover:
+- referential integrity and duplicate keys;
+- consistency of assessment module/presentation with the linked enrolment;
+- missing scores and withdrawn outcomes;
+- source versus imported counts and click totals;
+- the aggregation grain for interactions.
+
+Raw source data remains unchanged and excluded from Git.
