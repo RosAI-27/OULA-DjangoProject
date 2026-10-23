@@ -1,85 +1,102 @@
 # OULA — Student Success Analytics
 
-OULA is a student-success analytics project built with Django using the Open University Learning Analytics Dataset (OULAD). The goal is to organize student enrolment, course presentation, assessment, and learning-interaction data so we can study engagement and academic outcomes, then consider transparent early-warning indicators.
+OULA is a student-success analytics project built with Django and the Open University Learning Analytics Dataset (OULAD). It organizes student identities, course presentations, enrolments, assessments, and learning-platform interactions so we can study engagement and academic outcomes and develop transparent early-warning indicators.
 
 ## Project status
 
-**Stage:** Architecture and repository setup. The Django application and database models have not yet been implemented.
+The data-quality audit and interaction-preparation workflow are documented. Django models and the controlled data import have been implemented and validated locally. The core REST API is implemented locally; analytics validation, automated tests, risk segmentation, the queryable agent, and dashboard remain in progress. Backend changes are being synchronized to this feature branch.
 
-The four assignment concepts use English model names: `Student`, `Course`, `AssessmentResult`, and `StudentInteraction`. We will also use `Enrollment` as a fifth model because a student can enrol in multiple module presentations and enrolment-specific fields belong to that relationship.
+| Workstream | Status |
+|---|---|
+| Repository setup and architecture | Complete |
+| OULAD inspection and targeted missing-value audit | Complete; a few grouped-missingness checks remain |
+| Interaction preparation and source-count reconciliation | Complete |
+| Django models, migrations, and data import | Implemented and validated locally |
+| REST API endpoints | Core endpoints implemented locally; automated tests needed |
+| Course engagement and success-rate analytics | Initial endpoints implemented; further validation needed |
+| Engagement/results relationship | To complete |
+| Explainable student-risk indicators | Planned |
+| Evidence-grounded queryable agent | Planned |
+| Dashboard | Planned |
 
 ## Dataset
 
-Source: [Kaggle — Open University Learning Analytics Dataset](https://www.kaggle.com/datasets/rocki37/open-university-learning-analytics-dataset)
-
 OULAD contains seven related CSV files: `studentInfo.csv`, `studentRegistration.csv`, `courses.csv`, `assessments.csv`, `studentAssessment.csv`, `vle.csv`, and `studentVle.csv`.
 
-A key modelling detail: `Course` means a **module presentation**, identified by the pair `code_module` + `code_presentation`. A student may be enrolled in multiple module presentations. The interaction table `studentVle.csv` contains roughly 10.6 million rows, so it must be inspected and processed carefully rather than blindly loaded into Django ORM objects.
+- [Official OULAD dataset page](https://analyse.kmi.open.ac.uk/open_dataset)
+- [Kaggle dataset mirror](https://www.kaggle.com/datasets/rocki37/open-university-learning-analytics-dataset)
 
-See [the architecture](docs/architecture.md) and [the initial data dictionary](docs/data-dictionary.md) for the proposed mapping and validation plan.
+A course in this project represents a **module presentation**, identified by `code_module` + `code_presentation`. A student may be enrolled in multiple presentations. The original `studentVle.csv` contains over 10 million rows, so it must be processed carefully rather than blindly loaded as individual ORM objects.
 
-## Core domain models
+The original archive is kept locally under `data/raw/` and is not committed to Git. Prepared interaction data is stored under `data/processed/` and is also excluded from version control.
 
-- `Student` — the anonymised person identified by `id_student`, with stable person-level characteristics.
-- `Course` — a module presentation from `courses.csv`, uniquely identified by `code_module` + `code_presentation`.
-- `Enrollment` — one student's enrolment in one course presentation; stores enrolment-specific details and final outcome from `studentInfo.csv` and registration dates from `studentRegistration.csv`.
-- `AssessmentResult` — a student's assessment result from `studentAssessment.csv`, linked to assessment metadata in `assessments.csv` and the relevant `Enrollment`.
-- `StudentInteraction` — daily student clicks on a VLE resource from `studentVle.csv`, linked to the relevant `Enrollment`.
+## Core Django models
 
-Exact fields, constraints, and relationships must be checked against the professor's assignment sheet and the downloaded archive before migrations are created. The source-data grain and missing-value audit are documented in the architecture and data-quality notes.
+The implementation uses five models:
+
+- **`Student`** — anonymized person identified by `id_student`, with person-level characteristics.
+- **`Course`** — one module presentation, uniquely identified by `code_module` + `code_presentation`.
+- **`Enrollment`** — one student's enrolment in one course presentation; holds enrolment-specific characteristics, registration offsets, and final outcome.
+- **`Assessment`** — assessment metadata and a student's submission/result linked to an enrolment.
+- **`Interaction`** — aggregated clicks at the grain of one enrolment + one VLE resource + one relative day.
+
+`Enrollment` is necessary because assessment and interaction records belong to a particular student-course presentation, not to a student identity alone. See [the architecture](docs/architecture.md), [data dictionary](docs/data-dictionary.md), and [data-quality and missing-value policy](docs/data-quality-and-missing-values.md).
 
 ## Required MVP
 
-The professor's brief requires:
+The project aims to deliver:
 
-- **Django models:** `Student`, `Course`, `Enrollment`, `AssessmentResult`, `StudentInteraction`.
-- **DRF API and dashboard:** pass rate by course, engagement/results relationship, and at-risk student segments.
-- **Agentic component:** answer questions about possible disengagement, including when warning signs appeared, with justification grounded in interaction data.
+- **REST API and dashboard:** success rate by course, engagement/results relationship, and student-risk segments.
+- **Explainable risk indicators:** transparent criteria and supporting evidence, not definitive claims about an individual student's intentions or future.
+- **Queryable agent:** answers questions such as “Which students in course X show signs of disengagement, and since when?” with evidence from interaction data.
 
-Risk indicators must be explainable and uncertain, not treated as definitive judgments. “No recorded interaction” is not automatically proof of disengagement. See [architecture and interpretation rules](docs/architecture.md#assignment-mvp-and-interpretation-rules).
+The initial success-rate definition is Pass + Distinction divided by completed outcomes (Pass + Distinction + Fail); withdrawals are reported separately. “No recorded interaction” is not automatically proof of disengagement. Correlation between engagement and outcomes does not establish causation.
 
-## Planned workflow
+## Data preparation and validation
 
-1. Inspect and document the seven source tables.
-2. Validate data quality, keys, and relationships.
-3. Prepare data with reproducible Python scripts while preserving the raw files.
-4. Implement the four core Django models, migrations, admin registration, and tests.
-5. Import validated data and compare imported counts with source counts.
-6. Add descriptive analytics; introduce a REST API once the core backend is stable.
-7. Evaluate whether predictive modelling is justified by the target definition and leakage-safe validation.
-8. Add a dashboard or intelligent-agent interface only after the underlying outputs are reliable.
+The preparation script leaves the raw archive unchanged, removes exact duplicate source rows, and aggregates repeated student-resource-day observations by summing clicks. The intended interaction grain is `(enrollment, id_site, date)`.
 
-## Planned repository layout
+For the downloaded archive, the audited `studentVle.csv` had 10,655,280 source rows, 787,170 exact duplicate rows were removed, and 9,868,110 rows remained before aggregation into 8,459,320 interaction records. The imported database total for clicks was reconciled with the prepared CSV total: 38,343,063.
+
+Important missing-data decisions are recorded in [the missing-value policy](docs/data-quality-and-missing-values.md): missing scores are not zero; missing registration dates do not reliably classify withdrawal; and OULAD dates are relative day offsets, not calendar dates.
+
+## Development workflow
+
+1. Preserve and audit raw source data.
+2. Prepare and validate tables with reproducible scripts.
+3. Import data through a controlled process and compare counts, keys, and aggregates.
+4. Validate API behaviour and analytics with automated tests and explicit metric definitions.
+5. Build explainable risk segments using only information available at the stated observation time.
+6. Add the queryable agent and dashboard after the analytical outputs are reliable.
+7. Consider predictive modelling only if the target and prediction horizon are clearly defined and validation can prevent leakage.
+
+## Repository layout
 
 ```text
 OULA-DjangoProject/
-├── backend/                 # Django project and domain app
+├── backend/                 # Django project and analytics app
 ├── data/
-│   ├── raw/                 # Original files; excluded from Git by default
-│   └── processed/           # Generated outputs; excluded by default
-├── notebooks/               # Exploratory analysis and experiments
+│   ├── raw/                 # Original files; excluded from Git
+│   └── processed/           # Generated outputs; excluded from Git
+├── notebooks/               # Exploration and experiments
 ├── docs/                    # Architecture, data dictionary, decisions
-├── tests/                   # Automated tests
+├── scripts/                 # Reproducible audit and preparation scripts
 ├── .env.example             # Safe environment-variable template
 ├── .gitignore
 ├── requirements.txt
 └── README.md
 ```
 
-This is the target layout, not a claim that every component is implemented yet. Work will proceed in small, reviewable steps.
-
-## Development environment
-
-Development is planned on Windows with Visual Studio Code. Confirm the installed Python version before creating the virtual environment and installing dependencies.
-
 ## Data, privacy, and modelling principles
 
-- Do not commit secrets, local environment files, or raw/sensitive student-level data.
+- Do not commit secrets, local environment files, or raw student-level data.
 - Keep raw source files unchanged.
-- Avoid target leakage: predictive features must only use information available at the intended prediction time.
-- Establish a simple baseline before complex models.
-- Report limitations and use metrics appropriate to the prediction task; accuracy alone is insufficient.
+- Do not turn missing values into zero or an invented category without a documented reason.
+- Prevent target leakage: features must use only information available at the intended prediction time.
+- Establish a simple, interpretable baseline before complex models.
+- Report denominators, limitations, and metrics appropriate to the task; accuracy alone is insufficient.
+- Treat risk indicators as uncertain signals that support human review, not automated decisions about students.
 
 ## Collaboration
 
-Use feature branches and pull requests for substantial changes. Keep `main` reviewable so a classmate and the professor can follow progress.
+Use feature branches and pull requests for substantial changes. Keep `main` reviewable so classmates and the professor can follow the work.
