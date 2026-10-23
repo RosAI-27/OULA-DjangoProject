@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tableau de bord OULAD</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; background: #f4f6f9; color: #222; }
+    header { background: #1c3a6b; color: white; padding: 16px 24px; }
+    header h1 { margin: 0; font-size: 22px; }
+    main { padding: 20px 24px; max-width: 1100px; margin: auto; }
+    .filtres { display: flex; gap: 16px; align-items: center; margin-bottom: 20px; }
+    select { padding: 6px 10px; font-size: 14px; }
+    .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
+    .kpi { background: white; border-radius: 8px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+    .kpi .valeur { font-size: 30px; font-weight: bold; color: #1c3a6b; }
+    .kpi .label { font-size: 13px; color: #666; }
+    .carte { background: white; border-radius: 8px; padding: 16px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+    .carte h2 { margin-top: 0; font-size: 17px; }
+    .info { font-size: 13px; color: #666; }
+        .avertissement { background: #fff4e5; border-left: 4px solid #f0a030; padding: 10px 14px; font-size: 13px; margin-bottom: 14px; }
+    .resume-risque { display: flex; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+    .pastille { padding: 6px 12px; border-radius: 14px; font-size: 13px; font-weight: bold; }
+    .pastille.eleve { background: #fde2e2; color: #b42318; }
+    .pastille.moyen { background: #fff0d4; color: #a15c00; }
+    .pastille.faible { background: #dff5e1; color: #1e7a34; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid #e5e8ee; vertical-align: top; }
+    th { background: #f0f3f8; }
+        .chat-messages { border: 1px solid #e5e8ee; border-radius: 8px; padding: 12px; height: 320px; overflow-y: auto; background: #fafbfc; margin-bottom: 12px; }
+    .msg { margin-bottom: 10px; padding: 8px 12px; border-radius: 8px; max-width: 85%; white-space: pre-wrap; line-height: 1.4; font-size: 14px; }
+    .msg.utilisateur { background: #1c3a6b; color: white; margin-left: auto; }
+    .msg.assistant { background: #e9eef7; }
+    .msg.erreur { background: #fde2e2; color: #b42318; }
+    .chat-saisie { display: flex; gap: 8px; }
+    .chat-saisie input { flex: 1; padding: 10px; font-size: 14px; border: 1px solid #ccd3df; border-radius: 6px; }
+    .chat-saisie button { padding: 10px 18px; background: #1c3a6b; color: white; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; }
+    .chat-saisie button:disabled { background: #8a97b0; cursor: wait; }
+    .suggestions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+    .suggestions button { background: #eef2f8; color: #1c3a6b; border: 1px solid #ccd3df; border-radius: 14px; padding: 5px 12px; font-size: 12px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <header><h1>Réussite et engagement étudiant (OULAD)</h1></header>
+
+  <main>
+    <div class="filtres">
+      <label>Module :
+        <select id="filtreModule"></select>
+      </label>
+      <label>Session :
+        <select id="filtreSession">
+          <option value="">Toutes</option>
+          <option value="2013B">2013B</option>
+          <option value="2013J">2013J</option>
+          <option value="2014B">2014B</option>
+          <option value="2014J">2014J</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi"><div class="valeur" id="kpiInscrits">-</div><div class="label">Inscriptions (tous modules)</div></div>
+      <div class="kpi"><div class="valeur" id="kpiReussite">-</div><div class="label">Taux de réussite (tous modules)</div></div>
+      <div class="kpi"><div class="valeur" id="kpiAbandon">-</div><div class="label">Taux d'abandon (tous modules)</div></div>
+    </div>
+
+    <div class="carte">
+      <h2>Réussite et abandon par module</h2>
+      <canvas id="graphReussite" height="110"></canvas>
+    </div>
+
+    <div class="carte">
+      <h2>Clics par semaine (module sélectionné)</h2>
+      <p class="info" id="infoEngagement"></p>
+      <canvas id="graphEngagement" height="110"></canvas>
+    </div>
+        <div class="carte">
+      <h2>Étudiants à risque de décrochage</h2>
+      <div class="avertissement">
+        Le score de risque est un <strong>indicateur d'aide à la décision</strong>, pas un verdict
+        sur l'étudiant. Il repose uniquement sur l'activité et les notes observées jusqu'au jour de coupure.
+      </div>
+      <div class="filtres">
+        <label>Jour de coupure :
+          <select id="filtreJour">
+            <option value="30">Jour 30</option>
+            <option value="60" selected>Jour 60</option>
+            <option value="90">Jour 90</option>
+            <option value="120">Jour 120</option>
+          </select>
+        </label>
+        <label>Niveau :
+          <select id="filtreNiveau">
+            <option value="">Tous</option>
+            <option value="eleve">Élevé</option>
+            <option value="moyen">Moyen</option>
+            <option value="faible">Faible</option>
+          </select>
+        </label>
+      </div>
+      <p class="info" id="infoRisque"></p>
+      <div class="resume-risque" id="resumeRisque"></div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Étudiant</th>
+              <th>Score</th>
+              <th>Niveau</th>
+              <th>Clics</th>
+              <th>Moy. notes</th>
+              <th>Motifs</th>
+              <th>Résultat final (vérification)</th>
+            </tr>
+          </thead>
+          <tbody id="corpsRisque"></tbody>
+        </table>
+      </div>
+    </div>
+        <div class="carte">
+      <h2>Assistant d'analyse</h2>
+      <p class="info">Posez une question en français sur les données. L'assistant interroge l'API du projet et ne s'appuie que sur ses résultats.</p>
+      <div class="suggestions">
+        <button type="button" class="suggestion">Quel module a le meilleur taux de réussite en 2013J ?</button>
+        <button type="button" class="suggestion">Quels étudiants du module AAA en 2013J sont les plus à risque, et pourquoi ?</button>
+        <button type="button" class="suggestion">Comment évolue l'engagement du module BBB en 2014J ?</button>
+      </div>
+      <div class="chat-messages" id="chatMessages"></div>
+      <div class="chat-saisie">
+        <input type="text" id="chatQuestion" placeholder="Votre question..." maxlength="1000">
+        <button type="button" id="chatEnvoyer">Envoyer</button>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    let graphReussite = null;
+    let graphEngagement = null;
+    let modulesCharges = false;
+
+    const selModule = document.getElementById("filtreModule");
+    const selSession = document.getElementById("filtreSession");
+
+    async function chargerReussite() {
+      const session = selSession.value;
+      let url = "/api/stats/reussite-par-cours/";
+      if (session) url += "?code_presentation=" + session;
+
+      const reponse = await fetch(url);
+      const data = await reponse.json();
+
+      // Remplir la liste des modules une seule fois
+      if (!modulesCharges && data.length > 0) {
+        data.forEach(function (d) {
+          const opt = document.createElement("option");
+          opt.value = d.code_module;
+          opt.textContent = d.code_module;
+          selModule.appendChild(opt);
+        });
+        modulesCharges = true;
+      }
+
+      // Cartes de chiffres clés (moyennes pondérées par le nombre d'inscrits)
+      let total = 0, somReussite = 0, somAbandon = 0;
+      data.forEach(function (d) {
+        total += d.total;
+        somReussite += d.total * d.taux_reussite;
+        somAbandon += d.total * d.taux_abandon;
+      });
+      document.getElementById("kpiInscrits").textContent = total.toLocaleString("fr-FR");
+      document.getElementById("kpiReussite").textContent = total ? (somReussite / total).toFixed(1) + " %" : "-";
+      document.getElementById("kpiAbandon").textContent = total ? (somAbandon / total).toFixed(1) + " %" : "-";
+
+      // Graphique en barres
+      if (graphReussite) graphReussite.destroy();
+      graphReussite = new Chart(document.getElementById("graphReussite"), {
+        type: "bar",
+        data: {
+          labels: data.map(function (d) { return d.code_module; }),
+          datasets: [
+            { label: "Taux de réussite (%)", data: data.map(function (d) { return d.taux_reussite; }) },
+            { label: "Taux d'abandon (%)", data: data.map(function (d) { return d.taux_abandon; }) }
+          ]
+        },
+        options: { scales: { y: { beginAtZero: true, max: 100 } } }
+      });
+    }
+
+    async function chargerEngagement() {
+      const module = selModule.value;
+      if (!module) return;
+      const session = selSession.value;
+
+      let url = "/api/stats/engagement-par-semaine/?code_module=" + module;
+      if (session) url += "&code_presentation=" + session;
+
+      document.getElementById("infoEngagement").textContent = "Chargement en cours...";
+      const reponse = await fetch(url);
+      const data = await reponse.json();
+      document.getElementById("infoEngagement").textContent = "";
+
+      if (graphEngagement) graphEngagement.destroy();
+      graphEngagement = new Chart(document.getElementById("graphEngagement"), {
+        type: "line",
+        data: {
+          labels: data.map(function (d) { return "S" + d.semaine; }),
+          datasets: [
+            { label: "Clics par étudiant actif", data: data.map(function (d) { return d.clics_par_etudiant; }) }
+          ]
+        },
+        options: { scales: { y: { beginAtZero: true } } }
+      });
+    }
+
+        const libellesNiveau = { eleve: "Élevé", moyen: "Moyen", faible: "Faible" };
+
+    async function chargerRisque() {
+      const module = selModule.value;
+      const session = selSession.value;
+      const jour = document.getElementById("filtreJour").value;
+      const niveau = document.getElementById("filtreNiveau").value;
+      const info = document.getElementById("infoRisque");
+      const resume = document.getElementById("resumeRisque");
+      const corps = document.getElementById("corpsRisque");
+
+      corps.innerHTML = "";
+      resume.innerHTML = "";
+
+      if (!module || !session) {
+        info.textContent = "Choisissez un module et une session précise (pas « Toutes ») pour afficher les étudiants à risque.";
+        return;
+      }
+
+      info.textContent = "Chargement en cours...";
+      let url = "/api/etudiants-a-risque/?code_module=" + module +
+                "&code_presentation=" + session + "&jour=" + jour + "&limite=50";
+      if (niveau) url += "&niveau=" + niveau;
+
+      const reponse = await fetch(url);
+      const data = await reponse.json();
+
+      if (data.erreur) {
+        info.textContent = data.erreur;
+        return;
+      }
+
+      const total = data.resume.eleve + data.resume.moyen + data.resume.faible;
+      if (total === 0) {
+        info.textContent = "Aucune donnée pour le module " + module + " en session " + session + " (cette combinaison n'existe peut-être pas).";
+        return;
+      }
+
+      info.textContent = total + " étudiants analysés au jour " + jour + " (les 50 plus à risque sont listés).";
+      ["eleve", "moyen", "faible"].forEach(function (n) {
+        const p = document.createElement("span");
+        p.className = "pastille " + n;
+        p.textContent = libellesNiveau[n] + " : " + data.resume[n];
+        resume.appendChild(p);
+      });
+
+      data.etudiants.forEach(function (e) {
+        const tr = document.createElement("tr");
+        const cellules = [
+          e.id_student,
+          e.score_risque,
+          libellesNiveau[e.niveau],
+          e.total_clics,
+          e.moyenne_notes === null ? "-" : e.moyenne_notes,
+          e.motifs.join(", "),
+          e.resultat_final
+        ];
+        cellules.forEach(function (valeur) {
+          const td = document.createElement("td");
+          td.textContent = valeur;
+          tr.appendChild(td);
+        });
+        corps.appendChild(tr);
+      });
+    }
+
+    async function toutCharger() {
+      await chargerReussite();
+      await chargerEngagement();
+      await chargerRisque();
+    }
+
+    selSession.addEventListener("change", toutCharger);
+    selModule.addEventListener("change", function () {
+      chargerEngagement();
+      chargerRisque();
+    });
+    document.getElementById("filtreJour").addEventListener("change", chargerRisque);
+    document.getElementById("filtreNiveau").addEventListener("change", chargerRisque);
+
+    toutCharger();
+    
+    // ---- Assistant (chat) ----
+    const zoneMessages = document.getElementById("chatMessages");
+    const champQuestion = document.getElementById("chatQuestion");
+    const boutonEnvoyer = document.getElementById("chatEnvoyer");
+
+    function ajouterMessage(texte, type) {
+      const div = document.createElement("div");
+      div.className = "msg " + type;
+            div.textContent = type === "assistant" ? texte.replace(/\*\*/g, "") : texte;
+      zoneMessages.appendChild(div);
+      zoneMessages.scrollTop = zoneMessages.scrollHeight;
+      return div;
+    }
+
+    async function envoyerQuestion(question) {
+      question = question.trim();
+      if (!question) return;
+
+      ajouterMessage(question, "utilisateur");
+      champQuestion.value = "";
+      boutonEnvoyer.disabled = true;
+      const attente = ajouterMessage("L'assistant réfléchit... (cela peut prendre quelques dizaines de secondes)", "assistant");
+
+      try {
+        const reponse = await fetch("/api/agent/ask/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question: question }),
+          signal: AbortSignal.timeout(240000)
+        });
+        const data = await reponse.json();
+        attente.remove();
+        if (data.erreur) {
+          ajouterMessage(data.erreur, "erreur");
+        } else {
+          ajouterMessage(data.reponse, "assistant");
+        }
+      } catch (e) {
+        attente.remove();
+        ajouterMessage("L'assistant a mis trop de temps à répondre. Réessayez, ou vérifiez votre connexion.", "erreur");
+      }
+      boutonEnvoyer.disabled = false;
+      champQuestion.focus();
+    }
+
+    boutonEnvoyer.addEventListener("click", function () { envoyerQuestion(champQuestion.value); });
+    champQuestion.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" && !boutonEnvoyer.disabled) envoyerQuestion(champQuestion.value);
+    });
+    document.querySelectorAll(".suggestion").forEach(function (b) {
+      b.addEventListener("click", function () {
+        if (!boutonEnvoyer.disabled) envoyerQuestion(b.textContent);
+      });
+    });
+  </script>
+</body>
+</html>
