@@ -1,170 +1,158 @@
-# OULA — Architecture for the Open University Learning Analytics Dataset
+# OULA — Architecture and Implementation Decisions
 
 ## 1. Purpose
 
-OULA is a student-success analytics project built with Django. The first goal is a reliable, explainable foundation for exploring student enrolment, assessment performance, and engagement with the Virtual Learning Environment (VLE).
+OULA is a Django-based student-success analytics application using the Open University Learning Analytics Dataset (OULAD). It is intended to help a teaching team explore student engagement and academic outcomes, identify explainable early-warning signals, and query the evidence behind those signals.
 
-We will satisfy the course requirements first and keep the system incremental. Predictive modelling and an intelligent-agent interface are later options, not prerequisites for a good project.
+The project follows the course MVP first:
+1. Pass/success rate by module presentation.
+2. Relationship between engagement and results.
+3. Transparent at-risk segments.
+4. A REST API and dashboard.
+5. A read-only, evidence-grounded query agent after the analytics are reliable.
 
-## 2. Source dataset and relational grain
+Prediction is not a prerequisite. If predictive modelling is added, it must use a defined prediction time, leakage-safe features, a simple baseline, appropriate evaluation metrics, and clearly stated limitations.
 
-The project uses the Open University Learning Analytics Dataset (OULAD), obtained through the Kaggle dataset link shared for this project. OULAD is distributed as seven related CSV tables. The commonly documented release contains about 32,593 student-module-presentation records and 10.6 million daily student-resource interaction records.
+## 2. Source data and grain
 
-The key identifiers are:
+The project uses the seven related OULAD CSV files: `studentInfo.csv`, `studentRegistration.csv`, `courses.csv`, `assessments.csv`, `studentAssessment.csv`, `vle.csv`, and `studentVle.csv`.
 
+Important identifiers:
 - `code_module`: module code.
 - `code_presentation`: a particular presentation/run of a module.
-- `id_student`: anonymised student identifier.
+- `id_student`: anonymised person identifier.
 - `id_assessment`: assessment identifier.
 - `id_site`: VLE resource identifier.
 
-**Important modelling detail:** a course/module is not uniquely identified by `code_module` alone. Use the pair `(code_module, code_presentation)` as the natural identifier for a module presentation.
+A course offering is a **module presentation**, uniquely matched by `(code_module, code_presentation)`, not by `code_module` alone. The same person may have multiple enrolments, and enrolment-level fields such as age band, prior attempts, credits, final result, and registration dates belong to the student–presentation relationship.
 
-The data describes student enrolments in module presentations, not just one demographic row per person. The same student can appear in multiple module presentations.
+OULAD's dates are day offsets on a module-presentation timeline, not calendar dates.
 
-## 3. Required core Django models
+## 3. Domain model implemented
 
-The professor's four required model names are preserved: `Etudiant`, `Cours`, `Evaluation`, and `Interaction`. Their exact fields should be reconciled with the professor's assignment sheet before migrations are committed.
+The professor's four required concepts are represented with consistent English Django names. The implementation has five database models because a separate `Enrollment` is needed to represent the source data's actual grain.
 
-### Etudiant
+| Assignment concept / purpose | Django model | Grain and responsibility |
+|---|---|---|
+| Student (`Etudiant`) | `Student` | One anonymised person, identified by unique `id_student`; stable person-level characteristics only. |
+| Course (`Cours`) | `Course` | One module presentation, identified by unique `code_module` + `code_presentation`. |
+| Enrolment relationship | `Enrollment` | One student in one module presentation; stores enrolment-specific attributes and final outcome. |
+| Assessment (`Evaluation`) | `Assessment` | One student's recorded result/submission for an assessment, linked to an `Enrollment`. |
+| Interaction (`Interaction`) | `Interaction` | Aggregated daily clicks for one enrolment and one VLE resource. |
 
-Represents a student's enrolment in a particular module presentation, using the grain represented by `studentInfo.csv`.
+### Student
 
-Candidate fields from `studentInfo.csv`:
-- `id_student`
-- `code_module`, `code_presentation`
-- `gender`, `region`, `highest_education`, `imd_band`, `age_band`
-- `num_of_prev_attempts`, `studied_credits`, `disability`, `final_result`
+Fields include `id_student`, `gender`, `region`, `highest_education`, `imd_band`, and `disability`. The source audit found students whose `age_band` differs across enrolments, so `age_band` is stored on `Enrollment`, not as a permanent person attribute.
 
-Registration dates are in `studentRegistration.csv`: `date_registration` and `date_unregistration`. They can be incorporated into Etudiant when importing data, or handled separately if the assignment requires a normalized schema.
+### Course
 
-Avoid treating `id_student` by itself as the primary key of an enrolment row. The student may take multiple module presentations.
+Fields: `code_module`, `code_presentation`, and `module_presentation_length`. A database uniqueness constraint protects the natural key `(code_module, code_presentation)`.
 
-### Cours
+### Enrollment
 
-Represents a **module presentation**. Candidate fields:
-- `code_module`
-- `code_presentation`
-- `module_presentation_length`
+Foreign keys to `Student` and `Course`; fields include `age_band`, `num_of_prev_attempts`, `studied_credits`, `final_result`, `date_registration`, and `date_unregistration`. The pair `(student, course)` is unique. Registration values remain relative day offsets; missing values are preserved.
 
-Use the composite natural key `(code_module, code_presentation)` for matching the source data. Django may use its normal surrogate primary key while enforcing a unique constraint on these two fields.
+### Assessment
 
-### Evaluation
+Each row belongs to an `Enrollment` and carries `id_assessment`, `assessment_type`, `assessment_date`, `weight`, `date_submitted`, `is_banked`, and nullable `score`. The pair `(enrollment, id_assessment)` is unique.
 
-Represents an individual student's assessment result, joining the assessment metadata in `assessments.csv` with submissions/results in `studentAssessment.csv`.
+**Current design trade-off:** assessment definition metadata from `assessments.csv` is stored alongside each student's assessment result rather than in a separate assessment-definition model. This keeps the MVP at five models and supports the current import/API shape, but repeats metadata across students. If the application later needs richer assessment-level queries or stronger enforcement that an assessment belongs to the enrolment's course presentation, consider introducing a separate assessment-definition model. Any change must include migration and importer updates; do not rename or redesign models casually.
 
-Assessment metadata includes `id_assessment`, `assessment_type`, `date`, and `weight`. Student submissions include `id_assessment`, `id_student`, `date_submitted`, `is_banked`, and `score`.
-
-The assessment's module presentation must be resolved through the assessment metadata; do not join only on `id_student` or assume that every student submitted every assessment. Missing submissions and missing scores need explicit treatment.
+A missing score is not equivalent to zero, and the absence of a submission row is not automatically a zero score.
 
 ### Interaction
 
-Represents a student's interaction with a VLE resource on a particular day. `studentVle.csv` contains `code_module`, `code_presentation`, `id_student`, `id_site`, `date`, and `sum_click`.
+Each row belongs to an `Enrollment` and contains `id_site`, `date`, and `total_clicks`. Its grain is:
 
-Resource metadata in `vle.csv` includes `id_site`, module/presentation identifiers, `activity_type`, `week_from`, and `week_to`.
+`one enrollment + one VLE resource + one day`
 
-**Scale warning:** `studentVle.csv` has roughly 10.6 million rows. Do not blindly load the entire file into Django ORM objects or commit it to Git. First inspect memory/disk needs and the academic requirements; use chunked processing and/or aggregated interaction features where appropriate. Keep raw files outside version control unless permission and licensing clearly allow distribution.
+The raw `studentVle.csv` contains repeated observations at this grain, so exact duplicate source rows are removed and repeated observations are aggregated by summing `sum_click`. The uniqueness constraint is `(enrollment, id_site, date)`. Resource metadata from `vle.csv` is not currently a separate database model.
 
-## 4. Seven source CSVs and their roles
+## 4. Data preparation, import, and integrity
 
-| CSV | Role | Core model / use |
-|---|---|---|
-| `studentInfo.csv` | Student characteristics and final outcome per module presentation | Etudiant |
-| `studentRegistration.csv` | Registration and unregistration dates | Enrich Etudiant / validation |
-| `courses.csv` | Module presentation metadata | Cours |
-| `assessments.csv` | Assessment definitions, dates, types and weights | Enrich Evaluation |
-| `studentAssessment.csv` | Student submissions and scores | Evaluation |
-| `vle.csv` | VLE resource metadata | Enrich Interaction |
-| `studentVle.csv` | Daily student-resource clicks | Interaction / interaction aggregation |
+The raw archive is read-only and remains outside version control. Preparation scripts create reproducible processed data; the Django import command loads validated records in batches. The raw ZIP and generated interaction CSV must not be committed to Git.
 
-These seven source tables do not mean we must create seven Django models. The four course-required models are the required application boundary. Additional models should be introduced only if the professor's specification or a demonstrated integrity requirement justifies them.
+Recorded local preparation/import checkpoint:
+- Raw `studentVle` source rows: 10,655,280.
+- Exact duplicate source rows removed: 787,170.
+- Rows after exact de-duplication: 9,868,110.
+- Aggregated interaction rows: 8,459,320.
+- Imported courses: 22.
+- Imported students: 28,785.
+- Imported enrolments: 32,593.
+- Imported assessment results: 173,912.
+- Imported interactions: 8,459,320.
+- Imported total clicks: 38,343,063; matches the processed CSV total.
 
-## 5. Proposed layers
+These counts validate row totals and click totals for the recorded run; they do **not** by themselves prove row-by-row parity with every source record. Re-run validation after changing preparation or import logic.
 
-```text
-Seven original CSV files (read-only)
-          |
-          v
-Inspection + data dictionary + quality checks
-          |
-          v
-Reproducible Python preparation scripts
-          |
-          v
-Validated import / aggregation
-          |
-          v
-Django models: Etudiant, Cours, Evaluation, Interaction
-          |
-          +----> Django admin and model tests
-          |
-          +----> REST API (after core models are stable)
-                         |
-                         v
-                Descriptive analytics
-                         |
-                         v
-                Dashboard / interface
-```
+Other known data-quality decisions:
+- `imd_band` is missing for 1,111 source enrolment records; preserve missingness.
+- 11 assessment definitions have missing assessment dates; these are exams in the audited archive.
+- 173 student-assessment rows have missing scores; do not fill these with zero by default.
+- 72 students have `age_band` values that vary across enrolments; keep this field on `Enrollment`.
 
-Notebooks are for exploration and documented experiments. Reusable transformations should gradually move into scripts or Python modules so they can be rerun consistently.
+## 5. Backend and API layers
 
-## 6. Data preparation and integrity workflow
+The current backend contains the Django `analytics` app and these REST endpoints:
 
-1. Record the downloaded archive's provenance, licence, and file list.
-2. Inspect each CSV's columns, data types, row count, missingness, duplicates, identifier uniqueness, and row grain.
-3. Document join keys and test referential integrity.
-4. Keep raw source files unchanged.
-5. Write repeatable cleaning/validation scripts; never silently drop records just because values are missing.
-6. Decide how to represent dates, missing scores, withdrawn students, and students with no recorded VLE activity.
-7. Import manageable, validated tables into Django and compare record counts and keys against the source.
-8. For `studentVle.csv`, process in chunks or aggregate by a clearly documented grain rather than loading all rows as individual ORM objects by default.
+- `/api/courses/`
+- `/api/students/`
+- `/api/enrollments/`
+- `/api/assessments/`
+- `/api/analytics/engagement-by-course/`
 
-## 7. Analytics and modelling safeguards
+The list endpoints use pagination; student, enrolment, and assessment endpoints expose relevant filters. The engagement endpoint returns grouped summaries by module presentation, including total clicks, distinct active students, and interaction-record count. It aggregates in the database rather than returning millions of raw interaction rows.
 
-Begin with descriptive analysis and clearly defined indicators. If prediction is later justified:
+The API has been manually exercised during development. **Automated API/model tests are still a required quality gate**; an earlier `manage.py test analytics` run found zero tests. Do not describe the API phase as fully validated until tests cover important filters, pagination, empty/null cases, aggregation correctness, and key integrity.
 
-- define the outcome and prediction time horizon first;
-- prevent target leakage, especially from `final_result` or activity occurring after the intended prediction date;
-- split data in a way that reflects the intended generalisation setting;
-- compare with a simple baseline;
-- report class-wise metrics and limitations, not accuracy alone;
-- interpret risk indicators as uncertain signals, not definitive judgements about individual students.
+## 6. Analytics definitions and safeguards
 
-## 8. Assignment MVP and interpretation rules
+### Success rate by module presentation
 
-The professor's required MVP is:
+Define the numerator and denominator explicitly. A defensible starting definition is:
 
-1. **Pass rate by course:** define the denominator explicitly. A sensible first definition is students with a final outcome of Pass or Distinction divided by students with a completed, non-withdrawn outcome; report the withdrawal rate separately so excluding withdrawals does not hide them.
-2. **Engagement/results relationship:** aggregate `sum_click` at the student-enrolment level, then compare engagement indicators with assessment scores and/or final outcomes. Start with descriptive summaries and correlation; correlation does not establish that engagement causes success.
-3. **At-risk segments:** begin with transparent, documented rules or descriptive segments (for example, low recent activity relative to the course timeline, alongside weak or missing assessment results). Show the criteria and coverage, and do not label a student as certainly dropping out.
-4. **DRF API and dashboard:** expose tested, aggregated outputs from the backend before building dashboard charts.
+- Numerator: enrolments with `final_result` equal to `Pass` or `Distinction`.
+- Denominator: enrolments with a completed, non-withdrawn final outcome.
+- Report withdrawals separately rather than hiding them in the denominator.
 
-### Agentic component (after the analytics are trustworthy)
+The metric should be named and documented consistently in API responses, charts, and the report.
 
-The agent should answer scoped questions such as: “Which students in course X show signs of disengagement, and since when?” Its response must be grounded in queryable interaction records or derived indicators and explain the evidence (for example, last recorded activity day and a change in weekly click totals).
+### Engagement and outcomes
 
-- Treat `studentVle.date` and assessment dates as day offsets on the module-presentation timeline, not calendar dates.
-- Distinguish “no recorded interaction” from “confirmed disengagement”; activity data alone may be incomplete.
-- Use only information available up to the stated observation date when describing early-warning signals.
-- Return the criteria, evidence window, and relevant dates with the answer. The agent must not invent causes or claim certainty.
-- Keep the agent read-only for the MVP; it should not make decisions about students or modify records.
-## 9. Repository and privacy practices
+Aggregate clicks at the student-enrolment level before comparing engagement with scores or final outcomes. Start with descriptive summaries and appropriate association measures. Correlation does not establish that engagement causes academic success.
 
-- Keep original data under `data/raw/` locally, but excluded from Git by default.
-- Keep generated outputs under `data/processed/`, and commit only small, non-sensitive, permitted artifacts.
+### At-risk segments and agent
+
+Begin with transparent rules, documented time windows, and evidence such as recent activity changes and available assessment performance. Do not use final results or future activity as predictors for an earlier warning date. “No recorded interaction” is not proof of disengagement.
+
+The eventual query agent should be read-only and explain the course presentation, observation window, criteria, and evidence behind each answer. It must not invent causes or make decisions about students.
+
+## 7. Project workflow and next work
+
+Completed or implemented in the current development work:
+1. Repository and environment setup.
+2. OULAD audit and reproducible interaction preparation.
+3. Five Django models and migrations.
+4. Controlled import and count/click-total validation.
+5. Core DRF list endpoints and course-engagement aggregation.
+
+Next:
+1. Add automated tests for models, imports/validation, filters, pagination, and API aggregations.
+2. Implement the course-presentation success-rate endpoint with the denominator above.
+3. Implement student-enrolment-level engagement/outcome analysis.
+4. Define and test explainable risk segments.
+5. Build the dashboard on top of stable API outputs.
+6. Add the evidence-grounded read-only query agent.
+7. Complete documentation, reproducibility instructions, evaluation, and limitations.
+
+The phase numbers are a project work plan, not an official professor-defined sequence. Keep the professor's deliverables as the acceptance criteria.
+
+## 8. Repository and privacy practices
+
+- Keep raw files under `data/raw/` locally and exclude them from Git.
+- Exclude large generated datasets under `data/processed/` unless a small permitted artifact is specifically needed.
 - Never commit `.env`, credentials, or secrets.
-- Use synthetic or suitably anonymised fixtures in tests.
-- Document dataset attribution and licence in the final project report.
-- Keep `main` reviewable and collaborate using feature branches and pull requests.
-
-## 10. Next implementation milestone
-
-With the professor's brief now confirmed, inspect the actual downloaded archive and validate the proposed model fields/relationships against it. Then implement:
-1. data inspection report and data dictionary;
-2. reproducible preparation/validation scripts;
-3. Django project and app;
-4. four core models, migrations, admin registration, and tests;
-5. a controlled import command.
-
-The architecture is based on the documented OULAD tables; exact nullability, constraints, and import strategy must be validated against the downloaded files and the assignment sheet.
+- Use synthetic or suitably anonymised fixtures in automated tests.
+- Document dataset provenance, attribution, and licence in the final report.
+- Use feature branches and pull requests for reviewable changes; avoid overwriting local work or force-pushing to synchronize branches.
