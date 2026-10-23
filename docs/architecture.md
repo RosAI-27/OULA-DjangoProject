@@ -4,7 +4,7 @@
 
 OULA is a Django-based student-success analytics application using the Open University Learning Analytics Dataset (OULAD). It is intended to help a teaching team explore student engagement and academic outcomes, identify explainable early-warning signals, and query the evidence behind those signals.
 
-The project follows the course MVP first:
+The course MVP is:
 1. Pass/success rate by module presentation.
 2. Relationship between engagement and results.
 3. Transparent at-risk segments.
@@ -12,6 +12,8 @@ The project follows the course MVP first:
 5. A read-only, evidence-grounded query agent after the analytics are reliable.
 
 Prediction is not a prerequisite. If predictive modelling is added, it must use a defined prediction time, leakage-safe features, a simple baseline, appropriate evaluation metrics, and clearly stated limitations.
+
+**Branch status matters:** the Django implementation described in this document is present in the current development work, but the backend code is not yet committed to `main` as of this revision. The main-branch README and this architecture should not be interpreted as proof that these endpoints can already be run from `main`.
 
 ## 2. Source data and grain
 
@@ -28,7 +30,7 @@ A course offering is a **module presentation**, uniquely matched by `(code_modul
 
 OULAD's dates are day offsets on a module-presentation timeline, not calendar dates.
 
-## 3. Domain model implemented
+## 3. Domain model in the development implementation
 
 The professor's four required concepts are represented with consistent English Django names. The implementation has five database models because a separate `Enrollment` is needed to represent the source data's actual grain.
 
@@ -56,7 +58,7 @@ Foreign keys to `Student` and `Course`; fields include `age_band`, `num_of_prev_
 
 Each row belongs to an `Enrollment` and carries `id_assessment`, `assessment_type`, `assessment_date`, `weight`, `date_submitted`, `is_banked`, and nullable `score`. The pair `(enrollment, id_assessment)` is unique.
 
-**Current design trade-off:** assessment definition metadata from `assessments.csv` is stored alongside each student's assessment result rather than in a separate assessment-definition model. This keeps the MVP at five models and supports the current import/API shape, but repeats metadata across students. If the application later needs richer assessment-level queries or stronger enforcement that an assessment belongs to the enrolment's course presentation, consider introducing a separate assessment-definition model. Any change must include migration and importer updates; do not rename or redesign models casually.
+**Current design trade-off:** assessment definition metadata from `assessments.csv` is stored alongside each student's assessment result rather than in a separate assessment-definition model. This avoids adding a sixth model to the current MVP and matches the current import/API shape, but repeats metadata across students. It also means the database uniqueness constraint alone does not ensure that an `id_assessment` belongs to the same module presentation as the enrolment. Add importer validation and automated tests for this cross-table rule. If richer assessment-level queries or database-level enforcement become important, consider a separate assessment-definition model; that change would require coordinated migration, importer, serializer, and API updates.
 
 A missing score is not equivalent to zero, and the absence of a submission row is not automatically a zero score.
 
@@ -70,7 +72,7 @@ The raw `studentVle.csv` contains repeated observations at this grain, so exact 
 
 ## 4. Data preparation, import, and integrity
 
-The raw archive is read-only and remains outside version control. Preparation scripts create reproducible processed data; the Django import command loads validated records in batches. The raw ZIP and generated interaction CSV must not be committed to Git.
+The raw archive is read-only and remains outside version control. Preparation scripts create reproducible processed data; the development importer loads validated records in batches. The raw ZIP and generated interaction CSV must not be committed to Git.
 
 Recorded local preparation/import checkpoint:
 - Raw `studentVle` source rows: 10,655,280.
@@ -84,18 +86,17 @@ Recorded local preparation/import checkpoint:
 - Imported interactions: 8,459,320.
 - Imported total clicks: 38,343,063; matches the processed CSV total.
 
-These counts validate row totals and click totals for the recorded run; they do **not** by themselves prove row-by-row parity with every source record. Re-run validation after changing preparation or import logic.
+These are recorded development-run checks, not results reproducible from `main` alone until the backend implementation is merged. Matching row counts and click totals do **not** prove row-by-row parity. Re-run validation after changing preparation or import logic.
 
 Other known data-quality decisions:
-- `imd_band` is missing for 1,111 source enrolment records; preserve missingness.
+- `imd_band` is missing for 1,111 source records; preserve missingness.
 - 11 assessment definitions have missing assessment dates; these are exams in the audited archive.
 - 173 student-assessment rows have missing scores; do not fill these with zero by default.
 - 72 students have `age_band` values that vary across enrolments; keep this field on `Enrollment`.
 
-## 5. Backend and API layers
+## 5. Backend and API in development
 
-The current backend contains the Django `analytics` app and these REST endpoints:
-
+The development implementation includes these REST endpoints:
 - `/api/courses/`
 - `/api/students/`
 - `/api/enrollments/`
@@ -104,19 +105,18 @@ The current backend contains the Django `analytics` app and these REST endpoints
 
 The list endpoints use pagination; student, enrolment, and assessment endpoints expose relevant filters. The engagement endpoint returns grouped summaries by module presentation, including total clicks, distinct active students, and interaction-record count. It aggregates in the database rather than returning millions of raw interaction rows.
 
-The API has been manually exercised during development. **Automated API/model tests are still a required quality gate**; an earlier `manage.py test analytics` run found zero tests. Do not describe the API phase as fully validated until tests cover important filters, pagination, empty/null cases, aggregation correctness, and key integrity.
+The endpoints have been manually exercised in the development workspace. Automated API/model tests remain a quality gate; an earlier `manage.py test analytics` run found zero tests. Before calling the API complete, add tests for filters, pagination, empty/null cases, aggregation correctness, foreign-key integrity, and the assessment-to-enrolment course-consistency rule. The backend code must be merged before these endpoints are available from `main`.
 
 ## 6. Analytics definitions and safeguards
 
 ### Success rate by module presentation
 
-Define the numerator and denominator explicitly. A defensible starting definition is:
-
+Define the numerator and denominator explicitly:
 - Numerator: enrolments with `final_result` equal to `Pass` or `Distinction`.
 - Denominator: enrolments with a completed, non-withdrawn final outcome.
 - Report withdrawals separately rather than hiding them in the denominator.
 
-The metric should be named and documented consistently in API responses, charts, and the report.
+This is a proposed MVP definition; confirm it against the professor's rubric before treating it as final. Use the same definition in API responses, charts, and the report.
 
 ### Engagement and outcomes
 
@@ -130,7 +130,7 @@ The eventual query agent should be read-only and explain the course presentation
 
 ## 7. Project workflow and next work
 
-Completed or implemented in the current development work:
+Completed in the current development work (not yet all committed to `main`):
 1. Repository and environment setup.
 2. OULAD audit and reproducible interaction preparation.
 3. Five Django models and migrations.
@@ -139,14 +139,14 @@ Completed or implemented in the current development work:
 
 Next:
 1. Add automated tests for models, imports/validation, filters, pagination, and API aggregations.
-2. Implement the course-presentation success-rate endpoint with the denominator above.
+2. Implement the course-presentation success-rate endpoint with the denominator above, after confirming the rubric definition.
 3. Implement student-enrolment-level engagement/outcome analysis.
 4. Define and test explainable risk segments.
-5. Build the dashboard on top of stable API outputs.
+5. Build the dashboard on stable API outputs.
 6. Add the evidence-grounded read-only query agent.
-7. Complete documentation, reproducibility instructions, evaluation, and limitations.
+7. Merge the backend in a reviewed, reproducible state and complete documentation, evaluation, and limitations.
 
-The phase numbers are a project work plan, not an official professor-defined sequence. Keep the professor's deliverables as the acceptance criteria.
+The phase numbers are a project work plan, not an official professor-defined sequence. The professor's deliverables remain the acceptance criteria.
 
 ## 8. Repository and privacy practices
 
