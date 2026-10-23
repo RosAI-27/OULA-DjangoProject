@@ -1,12 +1,12 @@
 # OULA — Student Success Analytics
 
-OULA is a Django-based student-success analytics project using the Open University Learning Analytics Dataset (OULAD). It organizes student enrolments, course presentations, assessment results, and VLE interactions so we can study engagement and academic outcomes and build explainable early-warning indicators.
+OULA is a Django-based student-success analytics project using the Open University Learning Analytics Dataset (OULAD). It organizes student enrolments, course presentations, assessment results, and VLE interactions to study engagement and academic outcomes and build explainable early-warning indicators.
 
-## Project status
+## Repository status
 
-**Current implementation checkpoint:** data-quality audit and reproducible interaction preparation are complete; the Django models, migrations, controlled OULAD import, and core DRF list/engagement endpoints have been implemented and manually exercised. Automated tests and the remaining course analytics are still in progress.
+**Important branch distinction:** the Django models, importer, and REST API described in [the architecture](docs/architecture.md) exist in the current development work, but they are **not yet present on `main`**. The current `main` branch contains the initial repository, data-preparation work, and documentation. Do not treat an endpoint or model as available from `main` until its implementation has been merged.
 
-The application uses five Django models: `Student`, `Course`, `Enrollment`, `Assessment`, and `Interaction`. `Enrollment` represents a student's participation in one module presentation and keeps enrolment-level information separate from person-level attributes. See [the architecture and implementation decisions](docs/architecture.md) for model grain, data-quality decisions, API scope, metric definitions, limitations, and next steps.
+The intended domain model has five Django models: `Student`, `Course`, `Enrollment`, `Assessment`, and `Interaction`. `Enrollment` represents a student's participation in one module presentation and keeps enrolment-level information separate from person-level attributes. The architecture document distinguishes the intended/current development design from what is committed to `main`.
 
 ## Dataset
 
@@ -16,48 +16,39 @@ OULAD contains seven related CSV files: `studentInfo.csv`, `studentRegistration.
 
 A course offering is a **module presentation**, identified by the pair `code_module` + `code_presentation`. The same student may be enrolled in multiple presentations. The raw `studentVle.csv` contains over 10 million rows, so the project prepares and aggregates it reproducibly instead of naively inserting every raw row into Django.
 
-## Current backend endpoints
+## Course MVP
 
-- `/api/courses/`
-- `/api/students/`
-- `/api/enrollments/`
-- `/api/assessments/`
-- `/api/analytics/engagement-by-course/`
-
-The engagement endpoint aggregates interactions by module presentation. It does not expose millions of raw interaction rows. Automated tests for endpoint behavior and analytics correctness remain a required quality gate.
-
-## Required MVP
-
-The course brief calls for:
+The professor's brief calls for:
 - Django models for student, course, assessment, and interaction concepts.
 - A DRF API and dashboard for course pass rate, engagement/results relationship, and at-risk segments.
 - An agentic component that answers questions about possible disengagement and when warning signs appeared, with justification grounded in interaction data.
 
 Risk indicators must be explainable and uncertain, not treated as definitive judgments. “No recorded interaction” is not proof of disengagement. Predictive modelling is optional unless justified and must avoid target leakage.
 
-## Workflow and next steps
+## Workflow
 
-1. Add automated model/API/import validation tests.
-2. Implement the course-presentation success-rate endpoint with an explicit denominator and separately reported withdrawals.
-3. Analyse engagement at the student-enrolment level and compare it with assessment/final outcomes.
-4. Define and validate transparent at-risk segments.
-5. Build the dashboard on stable API outputs.
-6. Add the evidence-grounded, read-only query agent.
-7. Finish reproducibility instructions, evaluation, and limitations.
-
-The detailed implementation status and technical decisions are maintained in [docs/architecture.md](docs/architecture.md).
+1. Preserve and audit the original dataset.
+2. Prepare interactions at the documented student–module-presentation–resource–day grain.
+3. Integrate the Django backend and automated tests through reviewed pull requests.
+4. Implement the course-presentation success-rate endpoint with an explicit denominator and separately reported withdrawals.
+5. Analyse engagement at the student-enrolment level and compare it with assessment/final outcomes.
+6. Define and validate transparent at-risk segments.
+7. Build the dashboard on stable API outputs.
+8. Add the evidence-grounded, read-only query agent.
+9. Finish reproducibility instructions, evaluation, and limitations.
 
 ## Repository layout
 
 ```text
 OULA-DjangoProject/
-├── backend/                 # Django project and analytics app
+├── backend/                 # Django backend (currently placeholder on main)
 ├── data/
 │   ├── raw/                 # Original archive; excluded from Git
 │   └── processed/           # Generated data; excluded from Git
-├── scripts/                 # Reproducible preparation and audit scripts
-├── docs/                    # Architecture, data dictionary, decisions
+├── scripts/                 # Reproducible preparation scripts
+├── docs/                    # Architecture, data dictionary, data-quality decisions
 ├── notebooks/               # Exploratory analysis and experiments
+├── tests/                   # Test guidance and, as implementation is merged, automated tests
 ├── .env.example             # Safe environment-variable template
 ├── .gitignore
 ├── requirements.txt
