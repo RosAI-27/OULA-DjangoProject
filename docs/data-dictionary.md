@@ -54,7 +54,7 @@ Grain: one VLE resource within a module presentation. Validate the resource's mo
 
 Columns: `code_module`, `code_presentation`, `id_student`, `id_site`, `date`, `sum_click`.
 
-Raw grain: student-resource-day observations within a module presentation. The audited archive has 10,655,280 rows. Preparation removes only exact duplicate rows and then aggregates by `(code_module, code_presentation, id_student, id_site, date)), summing `sum_click` into `total_clicks`. This produces 8,459,320 interaction rows; see [data-quality.md](data-quality.md).
+Raw grain: student-resource-day observations within a module presentation. The audited archive has 10,655,280 rows. Preparation removes only exact duplicate rows and then aggregates by `(code_module, code_presentation, id_student, id_site, date)`, summing `sum_click` into `total_clicks`. This produces 8,459,320 interaction rows; see [data-quality.md](data-quality.md).
 
 ## Join and integrity rules
 
