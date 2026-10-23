@@ -1,9 +1,10 @@
-# Initial backend dependencies. Pin exact versions after confirming the local Python version.
+# Supported dependency ranges for the current OULA development environment.
+# Tested locally with Python 3.11.5; exact transitive versions may vary.
 Django>=5.2,<5.3
-djangorestframework>=3.16,<3.17
+djangorestframework>=3.18,<3.19
 
 # Data preparation
-pandas>=2.2,<3.0
+pandas>=2.2,<3.2
 numpy>=2.0,<3.0
 
 # Environment configuration
