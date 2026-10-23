@@ -1,12 +1,12 @@
 # OULA — Student Success Analytics
 
-OULA is a student-success analytics project built with Django using the Open University Learning Analytics Dataset (OULAD). The goal is to organize student enrolment, course presentation, assessment, and learning-interaction data so we can study engagement and academic outcomes, then consider transparent early-warning indicators.
+OULA is a student-success analytics project built with Django using the Open University Learning Analytics Dataset (OULAD). The goal is to organize student, course-presentation, assessment-result, and learning-interaction data so we can study engagement and academic outcomes, then consider transparent early-warning indicators.
 
 ## Project status
 
 **Stage:** Architecture and repository setup. The Django application and database models have not yet been implemented.
 
-The professor's four core model names take priority: `Etudiant`, `Cours`, `Evaluation`, and `Interaction`.
+The project uses consistent English names for its five domain models: `Student`, `CoursePresentation`, `Enrollment`, `AssessmentResult`, and `Interaction`. `Enrollment` separates a person from their registration in a specific course presentation.
 
 ## Dataset
 
@@ -14,24 +14,25 @@ Source: [Kaggle — Open University Learning Analytics Dataset](https://www.kagg
 
 OULAD contains seven related CSV files: `studentInfo.csv`, `studentRegistration.csv`, `courses.csv`, `assessments.csv`, `studentAssessment.csv`, `vle.csv`, and `studentVle.csv`.
 
-A key modelling detail: `Cours` means a **module presentation**, identified by the pair `code_module` + `code_presentation`. A student may be enrolled in multiple module presentations. The interaction table `studentVle.csv` contains roughly 10.6 million rows, so it must be inspected and processed carefully rather than blindly loaded into Django ORM objects.
+A key modelling detail: a course offering is a **course presentation**, identified by the pair `code_module` + `code_presentation`. A student may be enrolled in multiple course presentations. The interaction table `studentVle.csv` contains roughly 10.6 million rows, so it must be inspected and processed carefully rather than blindly loaded into Django ORM objects.
 
 See [the architecture](docs/architecture.md) and [the initial data dictionary](docs/data-dictionary.md) for the proposed mapping and validation plan.
 
-## Core domain models
+## Core domain concepts
 
-- `Etudiant` — student enrolment record in a module presentation, based on `studentInfo.csv`; registration dates are available in `studentRegistration.csv`.
-- `Cours` — module presentation from `courses.csv`.
-- `Evaluation` — student assessment result from `studentAssessment.csv`, linked to assessment metadata in `assessments.csv`.
-- `Interaction` — daily student clicks on a VLE resource from `studentVle.csv`, with resource metadata in `vle.csv`.
+- `Student` — a person identified by OULAD's `id_student`.
+- `CoursePresentation` — one offering of a module, identified by `code_module` and `code_presentation`.
+- `Enrollment` — one student's registration in one course presentation. It holds enrolment-level attributes and outcomes, including registration dates and final result where applicable.
+- `AssessmentResult` — a student's submission/result for an assessment, joined to the assessment definition in `assessments.csv`.
+- `Interaction` — a student's recorded activity with a VLE resource on a relative course day, based on `studentVle.csv` and enriched with `vle.csv` metadata.
 
-Exact fields, constraints, and relationships must be checked against the professor's assignment sheet and the downloaded archive before migrations are created.
+The four assignment concepts remain represented; `Enrollment` is a proposed additional model to preserve the source data's relational grain. Exact fields, constraints, and relationships must be checked against the professor's assignment sheet and the downloaded archive before migrations are created.
 
 ## Required MVP
 
 The professor's brief requires:
 
-- **Django models:** `Etudiant`, `Cours`, `Evaluation`, `Interaction`.
+- **Django domain models:** student, course, assessment, and interaction concepts (implemented with the English names above).
 - **DRF API and dashboard:** pass rate by course, engagement/results relationship, and at-risk student segments.
 - **Agentic component:** answer questions about possible disengagement, including when warning signs appeared, with justification grounded in interaction data.
 
@@ -42,7 +43,7 @@ Risk indicators must be explainable and uncertain, not treated as definitive jud
 1. Inspect and document the seven source tables.
 2. Validate data quality, keys, and relationships.
 3. Prepare data with reproducible Python scripts while preserving the raw files.
-4. Implement the four core Django models, migrations, admin registration, and tests.
+4. Finalize the English model names and relational design; implement models, migrations, admin registration, and tests.
 5. Import validated data and compare imported counts with source counts.
 6. Add descriptive analytics; introduce a REST API once the core backend is stable.
 7. Evaluate whether predictive modelling is justified by the target definition and leakage-safe validation.
@@ -59,6 +60,7 @@ OULA-DjangoProject/
 ├── notebooks/               # Exploratory analysis and experiments
 ├── docs/                    # Architecture, data dictionary, decisions
 ├── tests/                   # Automated tests
+├── scripts/                 # Reusable data inspection and preparation
 ├── .env.example             # Safe environment-variable template
 ├── .gitignore
 ├── requirements.txt
@@ -69,7 +71,7 @@ This is the target layout, not a claim that every component is implemented yet. 
 
 ## Development environment
 
-Development is planned on Windows with Visual Studio Code. Confirm the installed Python version before creating the virtual environment and installing dependencies.
+Development is planned on Windows with Visual Studio Code. Confirm the installed Python version before creating or selecting the virtual environment and installing dependencies.
 
 ## Data, privacy, and modelling principles
 
