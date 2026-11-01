@@ -2,15 +2,16 @@
 
 ## Current status
 
-The repository's `main` branch currently contains test guidance, but the Django implementation and its automated tests have not yet been integrated. The development checkpoint previously ran `python backend/manage.py test analytics` and Django reported zero tests; this is a gap, not evidence that the app is adequately tested.
+The Phase 6 validation checkpoint passed:
 
-## Priorities when backend code is integrated
+- `python backend/manage.py check` — no system-check issues.
+- `python backend/manage.py test analytics` — 5 tests passed.
 
-- Model constraints and relationships.
-- Data validation and import behavior, including reruns/failure handling.
-- Assessment-to-enrolment module/presentation consistency.
-- Interaction aggregation and click-total correctness.
-- Analytics calculations, including success-rate denominator and withdrawal reporting.
-- API filters, pagination, empty/null cases, response schemas, and permissions if applicable.
+The tests cover the implemented analytics application at the current project checkpoint. Passing tests do not replace source-to-database reconciliation or methodological review of the analytics.
 
-Use small synthetic fixtures rather than committing real student-level records. Tests should assert expected results, not merely that endpoints return HTTP 200.
+## Test principles
+
+- Use small synthetic fixtures rather than committing real student-level records.
+- Assert expected results, not merely that endpoints return HTTP 200.
+- Cover model constraints and relationships, import behaviour, analytics calculations, filters, pagination, and edge cases as the application evolves.
+- Keep test data deterministic and independent of the local production-sized OULAD database.

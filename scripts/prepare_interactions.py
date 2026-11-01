@@ -56,6 +56,9 @@ def prepare_interactions(zip_path: Path, output_path: Path) -> None:
         .rename(columns={"sum_click": "total_clicks"})
     )
 
+    if interactions.duplicated(subset=KEY_COLUMNS).any():
+        raise ValueError("Duplicate interaction keys found after aggregation.")
+
     if (interactions["total_clicks"] < 0).any():
         raise ValueError("Aggregated total_clicks contains a negative value.")
 
