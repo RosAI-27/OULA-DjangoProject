@@ -168,7 +168,7 @@ A student can take more than one course presentation, and characteristics such a
 
 The `Enrollment` model allows the application to represent these course-specific records without duplicating the student's identity.
 
-It also gives assessments and interactions a clear connection to the relevant student and course presentation.
+It also gives assessments and interactions a clear connection to the relevant enrolment and course presentation.
 
 ## 5. Data Quality Findings
 
@@ -219,8 +219,8 @@ The totals matched.
 - Risk indicators should be defined transparently and evaluated before being used to guide decisions about individual students.
 - Demographic information should be handled carefully and should not be used to make unsupported assumptions about individual students.
 
-## 8. Current Scope and Future Work
+## 8. Current Scope and Next Phase
 
-The source data have been audited, interaction data prepared, Django models migrated, and data imported and validated using the checks described above.
+The source data have been audited, interaction data prepared, Django models migrated, and data imported and validated using the checks described above. The REST API and Phase 6 descriptive engagement analytics are implemented and covered by the current automated test suite.
 
-The REST API, analytical dashboard, student risk indicators, and agentic question-answering feature remain planned development tasks.
+The next phase is to define and validate early-withdrawal risk indicators using an explicit prediction cutoff and only information available by that cutoff. The dashboard and evidence-grounded query agent remain later development tasks.

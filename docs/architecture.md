@@ -22,7 +22,7 @@ Important identifiers include `code_module`, `code_presentation`, `id_student`, 
 
 A course is a **module presentation**, uniquely identified by the pair `(code_module, code_presentation)`, not by `code_module` alone. A student may enrol in multiple module presentations. OULAD date fields are relative day offsets on a presentation timeline, not calendar dates; negative offsets can be valid.
 
-The original `studentVle.csv` contains more than 10 million rows. Processing must preserve the raw archive and use a documented grain rather than loading every raw row as a Django ORM object by default.
+The original `studentVle.csv` contains more than 10 million rows. Processing preserves the raw archive and uses a documented grain rather than loading every raw row as a Django ORM object by default.
 
 ## 3. Django domain model
 
@@ -40,7 +40,7 @@ Represents one module presentation, with `code_module`, `code_presentation`, and
 
 Represents one student's enrolment in one module presentation. It connects `Student` to `Course` and stores enrolment-specific fields such as `age_band`, `num_of_prev_attempts`, `studied_credits`, `final_result`, `date_registration`, and `date_unregistration`. The pair `(student, course)` is unique.
 
-This model is important because the same person may take multiple module presentations. Assessment and interaction records must link to the appropriate enrolment, not only to the student identity.
+This model is important because the same person may take multiple module presentations. Assessment and interaction records link to the appropriate enrolment, not only to the student identity.
 
 ### Assessment
 
@@ -79,10 +79,10 @@ Django REST Framework API
               v
 Validated descriptive analytics
               |
-              +----> Student-risk indicators
+              +----> Early-withdrawal risk indicators (Phase 7)
               |
               v
-Dashboard and evidence-grounded queryable agent
+Dashboard and evidence-grounded queryable agent (later work)
 ```
 
 Notebooks are appropriate for exploration and documented experiments. Reusable transformations should live in scripts or Python modules so the workflow can be rerun consistently.
@@ -99,7 +99,7 @@ The interaction preparation process:
 
 For the downloaded archive, `studentVle.csv` contained 10,655,280 source rows. Removing 787,170 exact duplicate rows left 9,868,110 rows before aggregation into 8,459,320 interaction records. The database total clicks reconciled with the prepared CSV total: 38,343,063.
 
-The Django models, migrations, and controlled import have been implemented and validated locally. The import validation recorded 22 courses, 28,785 students, 32,593 enrolments, 173,912 assessment records, and 8,459,320 interactions. These are audit results for the current local dataset; rerun validation if source data or transformations change.
+The Django models, migrations, and controlled import were implemented and validated locally. The import validation recorded 22 courses, 28,785 students, 32,593 enrolments, 173,912 assessment records, and 8,459,320 interactions. These are audit results for the current local dataset; rerun validation if source data or transformations change.
 
 ## 6. Data-quality and missing-value policy
 
@@ -113,11 +113,11 @@ The guiding rule is **preserve → investigate → document → handle at point 
 - Use nullable database fields where missing numeric/date values must be represented as SQL `NULL`; distinguish database nullability from form validation.
 - For model-based work, fit imputers and encoders on training data only, after defining the prediction task.
 
-Detailed findings, cross-tabulations, decisions, and remaining audit checks are documented in [Data Quality and Missing-Value Policy](data-quality-and-missing-values.md). The source audit does not establish that all missingness mechanisms are MCAR, MAR, or MNAR.
+Detailed findings, cross-tabulations, decisions, and remaining audit checks are documented in [Data Quality Decisions](data-quality.md). The source audit does not establish that all missingness mechanisms are MCAR, MAR, or MNAR.
 
 ## 7. REST API and analytics
 
-The core API endpoints currently implemented locally are:
+The implemented API endpoints include:
 
 - `/api/courses/`
 - `/api/students/`
@@ -126,33 +126,33 @@ The core API endpoints currently implemented locally are:
 - `/api/analytics/engagement-by-course/`
 - `/api/analytics/success-rate-by-course/`
 
-The API uses pagination and selected filters. Large interaction tables should be queried through aggregated analytical endpoints rather than exposed as millions of raw records.
+The API uses pagination and selected filters. Large interaction tables are queried through aggregated analytical endpoints rather than exposed as millions of raw records.
 
 ### Success rate
 
-The initial definition is:
+The implemented definition is:
 
 `success rate = (Pass + Distinction) / (Pass + Distinction + Fail) × 100`
 
-Withdrawals are reported separately and excluded from the completed-outcome denominator. The API should also be checked for unexpected or missing outcome categories so the total enrollment count and known outcome counts are not assumed to reconcile automatically.
+Withdrawals are reported separately and excluded from the completed-outcome denominator. Unexpected or missing outcome categories should be reported explicitly rather than assuming that known outcome counts reconcile automatically with all enrolments.
 
 ### Engagement
 
-The engagement-by-course endpoint reports aggregated measures such as total clicks, distinct active students, and interaction-record counts. Next, validate the aggregation and complete the engagement/results relationship analysis at the student-enrolment level. Start with descriptive summaries and correlation; correlation does not establish causation.
+The engagement-by-course endpoint reports aggregated measures such as total clicks, distinct active students, and interaction-record counts. Phase 6 added course-level engagement and success analytics, descriptive engagement/outcome analysis, course variation analysis, aggregate CSV reports, and automated tests.
 
-Before moving on, add automated tests for endpoint responses, metric denominators, filters, empty groups, missing/unexpected outcomes, and relevant edge cases. A successful server check alone does not prove the analytics are correct.
+The Phase 6 checkpoint passed `python backend/manage.py check` and `python backend/manage.py test analytics` (5 tests). API aggregates were also reconciled against the database: 22 course groups, 38,343,063 clicks, and 8,459,320 interaction records matched.
 
-## 8. Student-risk indicators
+Engagement/outcome relationships are descriptive. Correlation does not establish causation. Registration-window duration is not a measure of actual VLE exposure.
 
-The first risk-segmentation approach should be transparent and rule-based rather than automatically introducing a predictive model. Potential indicators include low recent activity relative to the course timeline, a substantial decline in activity, or weak/missing assessment evidence. The exact rules and observation windows must be defined and tested before being treated as project results.
+## 8. Phase 7 — early-withdrawal risk indicators
 
-- Use only information available by the stated observation day.
-- Do not use final outcomes as early-warning features when those outcomes would not yet be known.
-- Distinguish no recorded activity from confirmed disengagement.
-- Show the evidence window, rule, and coverage for each flagged enrolment.
-- Treat risk as uncertain and suitable for human follow-up, not as a definitive judgement about a student.
+The next development phase defines transparent early-withdrawal indicators using a stated observation cutoff. The initial design uses a day-27 cutoff and must include only information available by the end of that day.
 
-If prediction is later justified, define the target and prediction horizon first, establish a simple baseline, choose a split that reflects the intended generalization setting, and prevent target leakage. Report class-wise metrics and limitations rather than accuracy alone.
+The primary task is to distinguish students who withdraw after the cutoff from students who remain enrolled beyond it, among students who are still registered at the cutoff. Students already withdrawn on or before the cutoff are not part of the active-at-cutoff prediction cohort. Missing unregistration dates for records marked Withdrawn do not provide a known withdrawal time and must be handled explicitly rather than silently assigned a label.
+
+Candidate features from the early interaction window include total clicks, active days, distinct resources, interaction-record count, and indicators for no recorded early activity. Define the observation window carefully against registration day and the earliest available VLE day. Do not use full-course totals, final outcomes, future interactions, or post-cutoff assessment information as predictors.
+
+Before modelling, validate cohort construction, target prevalence, missing event-time handling, and feature availability. Establish an interpretable baseline before trying more complex models. Split data by student where a student can contribute multiple enrolments, and report class-sensitive metrics, calibration, and limitations. These are design decisions to validate in Phase 7, not completed model results.
 
 ## 9. Queryable agent and dashboard
 
@@ -160,7 +160,7 @@ The planned agent should answer scoped questions such as “Which students in co
 
 The agent must not invent causes, claim certainty, or make decisions about students. Keep it read-only for the MVP. Build the dashboard and agent only after the underlying analytics and risk rules are tested.
 
-## 10. Privacy, repository practices, and next steps
+## 10. Privacy and repository practices
 
 - Keep original data under `data/raw/` locally and exclude it from Git by default.
 - Keep generated outputs under `data/processed/` and commit only small, non-sensitive, permitted artifacts.
@@ -169,11 +169,3 @@ The agent must not invent causes, claim certainty, or make decisions about stude
 - Document dataset attribution and licence in the final report.
 - Use feature branches and pull requests to keep `main` reviewable.
 
-### Current implementation status
-
-- **Completed:** architecture, targeted source-data audit, interaction preparation, Django models/migrations, controlled import, and source/database count reconciliation.
-- **Implemented locally; needs stronger validation:** core DRF endpoints and initial course-level engagement and success-rate analytics.
-- **Next:** add automated API and metric tests; complete engagement/results analysis; validate edge cases and outcome categories.
-- **After that:** implement transparent risk segmentation, then the evidence-grounded agent and dashboard.
-
-This document distinguishes work implemented locally from work not yet completed. Update the status as code is validated and synchronized.

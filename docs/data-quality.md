@@ -1,8 +1,8 @@
 # OULAD Data Quality Decisions
 
-## Scope
+## Scope and status
 
-This document records Phase 2 validation decisions before loading OULAD into Django. Raw source files remain unchanged.
+This document records the audit of the downloaded OULAD archive and the decisions used to prepare interactions for the project. Raw source files remain unchanged. The preparation script is committed in `scripts/prepare_interactions.py`; the Django importer and database validation are implemented in the Phase 6 backend.
 
 ## Missing values
 
@@ -11,7 +11,7 @@ Missing values are not globally imputed during source preparation. Treatment dep
 - `studentInfo.imd_band`: retain missing. For ML, compare an explicit `Unknown` category with train-only imputation and validate the choice.
 - `studentRegistration.date_unregistration`: retain missing because absence of a recorded unregistration is meaningful.
 - `assessments.date`: retain missing exam dates; do not invent dates.
-- `studentAssessment.score`: retain missing scores. Missing is not equivalent to score 0. In the current data, 173 missing scores are associated with TMA records.
+- `studentAssessment.score`: retain missing scores. Missing is not equivalent to score 0. In the audited archive, 173 missing scores are associated with TMA records.
 - `vle.week_from` / `week_to`: retain missing until an analysis requires these fields.
 
 For predictive modelling, any learned imputation must be fitted on training data only. The imputer and any missingness indicator must not learn from validation/test data.
@@ -76,6 +76,6 @@ A passed validation rule is retained as a regression check; there is nothing to 
 
 The processing logic is kept in `scripts/prepare_interactions.py`. It reads `studentVle.csv` from the raw OULAD ZIP, removes only exact duplicates, aggregates the agreed student-resource-day grain, and writes the processed interaction table. Source and processed row counts are reported so the transformation can be audited.
 
-## Next decision
+## Next phase
 
-Phase 2 is complete. Phase 3 will translate the validated OULAD structure and the agreed Interaction grain into the four core Django entities: `Etudiant`, `Cours`, `Evaluation`, and `Interaction`, without adding unnecessary models.
+The source audit and interaction preparation are complete for the audited archive. Phase 6 has added the five-model Django backend, controlled import, REST API, engagement analytics, and automated tests. Phase 7 will define and validate early-withdrawal risk indicators with an explicit prediction cutoff and leakage-safe feature construction.

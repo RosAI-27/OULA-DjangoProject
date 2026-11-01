@@ -1,4 +1,5 @@
-# Initial backend dependencies. Pin exact versions after confirming the local Python version.
+# Supported dependency ranges for the current OULA development environment.
+# Tested locally with Python 3.11.5; exact transitive versions may vary.
 Django>=5.2,<5.3
 djangorestframework>=3.18,<3.19
 
