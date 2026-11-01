@@ -5,7 +5,7 @@ import django
 from collections import defaultdict
 from statistics import mean, median
 
-from django.db.models import Count, Q, F, Sum, Value
+from django.db.models import Count, Sum, Q, F, Value
 from django.db.models.functions import Coalesce
 
 
@@ -20,15 +20,31 @@ from analytics.models import Enrollment
 
 
 def get_enrollment_engagement():
-    """Return engagement metrics for every enrollment."""
+    """
+    Return engagement metrics for every enrollment.
+
+    The analysis follows the temporal conventions of OULAD:
+
+    - date_registration is relative to presentation start.
+    - date_unregistration is relative to presentation start.
+    - NULL date_unregistration means no recorded unregistration.
+    - module_presentation_length gives the presentation duration.
+    - Interaction.date is also relative to presentation start.
+
+    Interactions are counted only when they fall within the student's
+    registration window.
+    """
 
     interaction_window = (
         Q(interactions__date__gte=F("date_registration"))
-        & (
+        &
+        (
             Q(date_unregistration__isnull=True)
-            | Q(interactions__date__lte=F("date_unregistration"))
+            |
+            Q(interactions__date__lte=F("date_unregistration"))
         )
-        & Q(
+        &
+        Q(
             interactions__date__lte=F(
                 "course__module_presentation_length"
             )
@@ -78,7 +94,21 @@ def get_enrollment_engagement():
 
 
 def calculate_registration_window(row):
-    """Calculate the student's registration window in days."""
+    """
+    Calculate the student's registration window in days.
+
+    OULAD stores registration and unregistration as relative days
+    with respect to presentation start.
+
+    For students without an unregistration date:
+        - completed students are treated as remaining registered until
+          the end of the presentation;
+        - withdrawn students with missing unregistration dates are not
+          assigned an artificial exposure duration.
+
+    Returns:
+        (window_days, status)
+    """
 
     registration = row["date_registration"]
     unregistration = row["date_unregistration"]
@@ -88,15 +118,20 @@ def calculate_registration_window(row):
     if registration is None:
         return None, "missing_registration"
 
+    # OULAD documentation states that students who completed the
+    # course have an empty date_unregistration.
     if unregistration is None:
         if final_result == "Withdrawn":
             return None, "withdrawn_missing_unregistration"
+
         end_day = presentation_length
     else:
         end_day = min(unregistration, presentation_length)
 
     window_days = end_day - registration
 
+    # This should not occur given the validation already performed,
+    # but protect the metric against impossible negative durations.
     if window_days < 0:
         return None, "invalid_registration_window"
 
@@ -104,7 +139,7 @@ def calculate_registration_window(row):
 
 
 def add_derived_metrics(data):
-    """Add registration-window-adjusted engagement metrics."""
+    """Add registration-window and exposure-adjusted metrics."""
 
     for row in data:
         window_days, window_status = calculate_registration_window(row)
@@ -112,7 +147,10 @@ def add_derived_metrics(data):
         row["registration_window_days"] = window_days
         row["registration_window_status"] = window_status
 
-        if window_days is not None and window_days > 0:
+        if (
+            window_days is not None
+            and window_days > 0
+        ):
             row["clicks_per_registration_day"] = (
                 row["total_clicks"] / window_days
             )
@@ -143,7 +181,12 @@ def summarize_by_outcome(data):
     for row in data:
         groups[row["final_result"]].append(row)
 
-    outcomes = ["Distinction", "Pass", "Fail", "Withdrawn"]
+    outcomes = [
+        "Distinction",
+        "Pass",
+        "Fail",
+        "Withdrawn",
+    ]
 
     raw_metrics = [
         "total_clicks",
@@ -163,25 +206,31 @@ def summarize_by_outcome(data):
         total_enrollments = len(enrollments)
 
         observed = [
-            row for row in enrollments
+            row
+            for row in enrollments
             if row["interaction_records"] > 0
         ]
 
         observed_count = len(observed)
+
         interaction_coverage = (
             observed_count / total_enrollments * 100
-            if total_enrollments > 0 else 0
+            if total_enrollments > 0
+            else 0
         )
 
         valid_exposure = [
-            row for row in enrollments
+            row
+            for row in enrollments
             if row["registration_window_days"] is not None
         ]
 
         exposure_count = len(valid_exposure)
+
         exposure_coverage = (
             exposure_count / total_enrollments * 100
-            if total_enrollments > 0 else 0
+            if total_enrollments > 0
+            else 0
         )
 
         withdrawn_missing_unregistration = sum(
@@ -194,18 +243,33 @@ def summarize_by_outcome(data):
         print(f"\n{'=' * 65}")
         print(f"OUTCOME: {outcome.upper()}")
         print(f"{'=' * 65}")
+
         print(f"Total enrollments: {total_enrollments}")
-        print(f"With recorded interactions: {observed_count}")
+
+        print(
+            f"With recorded interactions: "
+            f"{observed_count}"
+        )
+
         print(
             f"Without recorded interactions: "
             f"{total_enrollments - observed_count}"
         )
-        print(f"Interaction coverage: {interaction_coverage:.2f}%")
+
+        print(
+            f"Interaction coverage: "
+            f"{interaction_coverage:.2f}%"
+        )
+
         print(
             f"Valid registration-window records: "
             f"{exposure_count}"
         )
-        print(f"Registration-window coverage: {exposure_coverage:.2f}%")
+
+        print(
+            f"Registration-window coverage: "
+            f"{exposure_coverage:.2f}%"
+        )
 
         if withdrawn_missing_unregistration:
             print(
@@ -218,8 +282,13 @@ def summarize_by_outcome(data):
             print("-" * 65)
 
             for metric in raw_metrics:
-                values = [row[metric] for row in observed]
+                values = [
+                    row[metric]
+                    for row in observed
+                ]
+
                 summary = summarize_metric(values)
+
                 print(
                     f"{metric}: "
                     f"mean = {summary['mean']:.2f}, "
@@ -227,7 +296,7 @@ def summarize_by_outcome(data):
                 )
 
         if valid_exposure:
-            print("\nREGISTRATION-WINDOW-ADJUSTED METRICS")
+            print("\nEXPOSURE-ADJUSTED METRICS")
             print("-" * 65)
 
             for metric in adjusted_metrics:
@@ -241,6 +310,7 @@ def summarize_by_outcome(data):
                     continue
 
                 summary = summarize_metric(values)
+
                 print(
                     f"{metric}: "
                     f"mean = {summary['mean']:.4f}, "
@@ -249,22 +319,32 @@ def summarize_by_outcome(data):
 
 
 if __name__ == "__main__":
+
     data = get_enrollment_engagement()
+
     data = add_derived_metrics(data)
 
-    print(f"Total enrollments analyzed: {len(data)}")
+    print(
+        f"Total enrollments analyzed: "
+        f"{len(data)}"
+    )
 
     enrollments_with_interactions = sum(
-        1 for row in data if row["interaction_records"] > 0
+        1
+        for row in data
+        if row["interaction_records"] > 0
     )
+
     enrollments_without_interactions = (
         len(data) - enrollments_with_interactions
     )
+
     valid_exposure_records = sum(
         1
         for row in data
         if row["registration_window_days"] is not None
     )
+
     withdrawn_missing_unregistration = sum(
         1
         for row in data
@@ -276,16 +356,20 @@ if __name__ == "__main__":
         "Enrollments with recorded interactions: "
         f"{enrollments_with_interactions}"
     )
+
     print(
         "Enrollments without recorded interactions: "
         f"{enrollments_without_interactions}"
     )
+
     print(
         "Enrollments with valid registration window: "
         f"{valid_exposure_records}"
     )
+
     print(
-        "Withdrawn enrollments with missing unregistration date: "
+        "Withdrawn enrollments with missing "
+        "unregistration date: "
         f"{withdrawn_missing_unregistration}"
     )
 
