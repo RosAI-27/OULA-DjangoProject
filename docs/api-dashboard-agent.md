@@ -28,7 +28,11 @@ dès que le périmètre (module, session) est identique.
 | GET | `/api/etudiants-a-risque/` | `code_module` et `code_presentation` (obligatoires), `jour` (défaut 60), `niveau` (`eleve`, `moyen`, `faible`), `limite` (défaut 50) | Étudiants à risque avec score, niveau et motifs |
 | POST | `/api/agent/ask/` | corps JSON `{"question": "..."}` | Réponse de l'agent en français |
 | GET | `/api/stats/engagement-par-resultat/` | `code_module` (obligatoire), `code_presentation` (optionnel) | Clics moyens et médians selon le résultat final |
-
+| GET | `/api/etudiants-a-risque/validation/` | `code_module` et `code_presentation` (obligatoires), `jour` (défaut 60) | Compare chaque niveau de risque au résultat final réel (% d'échecs ou d'abandons) |
+| GET | `/api/courses/` | `code_module`, `code_presentation`, `page`, `page_size` | Liste paginée des cours avec le nombre d'inscrits (public) |
+| GET | `/api/students/` et `/api/students/<id_student>/` | `region`, `gender`, `highest_education`, `page` | Étudiants anonymisés (connexion requise) |
+| GET | `/api/enrollments/` | `code_module`, `code_presentation`, `id_student`, `final_result`, `page` | Inscriptions et résultats finaux (connexion requise) |
+| GET | `/api/assessments/` | `code_module`, `code_presentation`, `id_student`, `assessment_type`, `page` | Évaluations et notes (connexion requise) |
 Exemples :
 
 ```
@@ -39,6 +43,15 @@ Exemples :
 
 Codes de réponse : `400` pour un paramètre manquant ou invalide, `502` si l'agent ne peut
 pas joindre le modèle de langage.
+
+### API de consultation
+
+Les endpoints `courses`, `students`, `enrollments` et `assessments` sont en lecture seule,
+paginés par 50 (paramètre `page_size`, maximum 200) et filtrables par paramètres d'adresse.
+La liste des cours est publique. Les données par étudiant exigent une connexion : un
+compte se crée avec `python manage.py createsuperuser`, puis on se connecte sur `/admin/`.
+Un filtre invalide renvoie une erreur `400`. Le tableau de bord et l'agent n'utilisent que
+des endpoints publics.
 
 ## Score de risque de décrochage
 
@@ -60,6 +73,24 @@ Les étudiants désinscrits au plus tard le jour de coupure sont exclus de l'ana
 
 > Le score est un indicateur d'aide à la décision, pas un verdict sur l'étudiant. Cet
 > avertissement figure aussi dans l'interface.
+
+### Validation a posteriori
+
+L'endpoint `/api/etudiants-a-risque/validation/` compare, pour chaque niveau de risque,
+la part d'étudiants qui ont finalement échoué ou abandonné. Le résultat final n'entre pas
+dans le calcul du score : cette comparaison permet donc de juger honnêtement sa pertinence.
+Résultats observés (module AAA, session 2013J, jour de coupure 60) : sur 361 étudiants
+analysés, la part de ceux qui ont finalement échoué ou abandonné est de 23,0 % pour
+l'ensemble du cours. Elle atteint 85,7 % au niveau élevé (7 étudiants), 64,3 % au niveau
+moyen (28 étudiants) et seulement 18,1 % au niveau faible (326 étudiants). Le taux
+d'échec ou d'abandon est donc environ 3,7 fois supérieur à la moyenne pour le niveau élevé,
+et il décroît régulièrement avec le niveau de risque.
+
+Limites de cette vérification : elle porte sur un seul cours et un seul jour de coupure,
+et les effectifs des niveaux élevé (7) et moyen (28) sont faibles, ce qui rend les
+pourcentages sensibles à quelques étudiants. Les étudiants déjà désinscrits au jour de
+coupure sont exclus de l'analyse : le taux de 23,0 % ne mesure donc que l'évolution
+après cette date, et non l'abandon total du cours.
 
 ## Tableau de bord
 
