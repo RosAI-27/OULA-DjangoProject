@@ -131,3 +131,57 @@ class TestEngagementParResultat(DonneesDeTest):
         self.assertEqual(par_resultat["Pass"]["clics_moyens"], 500.0)
         self.assertEqual(par_resultat["Withdrawn"]["inscrits"], 2)
         self.assertEqual(par_resultat["Withdrawn"]["clics_moyens"], 0.0)
+
+
+
+class TestApiConsultation(DonneesDeTest):
+    def _connecter(self):
+        from django.contrib.auth import get_user_model
+
+        utilisateur = get_user_model().objects.create_user("prof", password="mot-de-passe-test")
+        self.client.force_authenticate(user=utilisateur)
+
+    def test_cours_publics_et_pagines(self):
+        reponse = self.client.get("/api/courses/")
+        self.assertEqual(reponse.status_code, 200)
+        donnees = reponse.json()
+        self.assertEqual(donnees["count"], 1)
+        self.assertEqual(donnees["results"][0]["code_module"], "AAA")
+        self.assertEqual(donnees["results"][0]["inscrits"], 3)
+
+    def test_cours_filtre_par_module(self):
+        self.assertEqual(self.client.get("/api/courses/?code_module=AAA").json()["count"], 1)
+        self.assertEqual(self.client.get("/api/courses/?code_module=ZZZ").json()["count"], 0)
+
+    def test_etudiants_exigent_une_connexion(self):
+        reponse = self.client.get("/api/students/")
+        self.assertIn(reponse.status_code, (401, 403))
+
+    def test_etudiants_apres_connexion(self):
+        self._connecter()
+        reponse = self.client.get("/api/students/")
+        self.assertEqual(reponse.status_code, 200)
+        self.assertEqual(reponse.json()["count"], 3)
+
+    def test_detail_etudiant_par_identifiant(self):
+        self._connecter()
+        reponse = self.client.get("/api/students/2/")
+        self.assertEqual(reponse.status_code, 200)
+        self.assertEqual(reponse.json()["id_student"], 2)
+
+    def test_inscriptions_filtrees_par_resultat(self):
+        self._connecter()
+        donnees = self.client.get("/api/enrollments/?final_result=Pass").json()
+        self.assertEqual(donnees["count"], 1)
+        self.assertEqual(donnees["results"][0]["id_student"], 1)
+
+    def test_filtre_invalide_renvoie_400(self):
+        self._connecter()
+        reponse = self.client.get("/api/enrollments/?id_student=abc")
+        self.assertEqual(reponse.status_code, 400)
+
+    def test_evaluations_apres_connexion(self):
+        self._connecter()
+        donnees = self.client.get("/api/assessments/?code_module=AAA").json()
+        self.assertEqual(donnees["count"], 1)
+        self.assertEqual(donnees["results"][0]["score"], 80.0)
