@@ -77,6 +77,16 @@
       <canvas id="graphEngagement" height="110"></canvas>
     </div>
         <div class="carte">
+      <h2>Engagement et résultat final (module sélectionné)</h2>
+      <p class="info">
+        Nombre moyen et médian de clics sur la plateforme selon le résultat final de l'étudiant.
+        Attention : un étudiant qui abandonne en cours de route a moins de temps pour cliquer,
+        donc cet écart reflète en partie la durée de présence, pas seulement la motivation.
+        Une corrélation n'est pas une causalité.
+      </p>
+      <canvas id="graphCorrelation" height="110"></canvas>
+    </div>
+        <div class="carte">
       <h2>Étudiants à risque de décrochage</h2>
       <div class="avertissement">
         Le score de risque est un <strong>indicateur d'aide à la décision</strong>, pas un verdict
@@ -279,16 +289,51 @@
         corps.appendChild(tr);
       });
     }
+    let graphCorrelation = null;
+    const libellesResultat = {
+      Distinction: "Mention (Distinction)",
+      Pass: "Réussite (Pass)",
+      Fail: "Échec (Fail)",
+      Withdrawn: "Abandon (Withdrawn)"
+    };
+
+    async function chargerCorrelation() {
+      const module = selModule.value;
+      if (!module) return;
+      const session = selSession.value;
+
+      let url = "/api/stats/engagement-par-resultat/?code_module=" + module;
+      if (session) url += "&code_presentation=" + session;
+
+      const reponse = await fetch(url);
+      const data = await reponse.json();
+      if (data.erreur) return;
+
+      if (graphCorrelation) graphCorrelation.destroy();
+      graphCorrelation = new Chart(document.getElementById("graphCorrelation"), {
+        type: "bar",
+        data: {
+          labels: data.map(function (d) { return libellesResultat[d.resultat] + " (" + d.inscrits + " étudiants)"; }),
+          datasets: [
+            { label: "Clics moyens", data: data.map(function (d) { return d.clics_moyens; }) },
+            { label: "Clics médians", data: data.map(function (d) { return d.clics_medians; }) }
+          ]
+        },
+        options: { scales: { y: { beginAtZero: true } } }
+      });
+    }
 
     async function toutCharger() {
       await chargerReussite();
       await chargerEngagement();
+      await chargerCorrelation();
       await chargerRisque();
     }
 
     selSession.addEventListener("change", toutCharger);
     selModule.addEventListener("change", function () {
       chargerEngagement();
+      chargerCorrelation();
       chargerRisque();
     });
     document.getElementById("filtreJour").addEventListener("change", chargerRisque);

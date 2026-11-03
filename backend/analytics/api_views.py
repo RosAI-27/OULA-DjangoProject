@@ -1,3 +1,4 @@
+from statistics import median
 from django.db.models import Avg, Count, Sum, Q, IntegerField, ExpressionWrapper, F
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -215,3 +216,52 @@ class EtudiantsARisqueView(APIView):
                 "etudiants": etudiants[:limite],
             }
         )
+
+class EngagementParResultatView(APIView):
+    """Engagement moyen (clics sur tout le cours) selon le résultat final des étudiants.
+
+    Paramètres : code_module (obligatoire), code_presentation (optionnel).
+    """
+
+    ORDRE = ["Distinction", "Pass", "Fail", "Withdrawn"]
+
+    def get(self, request):
+        module = request.query_params.get("code_module")
+        presentation = request.query_params.get("code_presentation")
+        if not module:
+            return Response(
+                {"erreur": "Le paramètre code_module est obligatoire, par exemple ?code_module=AAA"},
+                status=400,
+            )
+
+        inscriptions = Enrollment.objects.filter(course__code_module=module)
+        interactions = Interaction.objects.filter(enrollment__course__code_module=module)
+        if presentation:
+            inscriptions = inscriptions.filter(course__code_presentation=presentation)
+            interactions = interactions.filter(enrollment__course__code_presentation=presentation)
+
+        clics = dict(
+            interactions.filter(date__gte=0)
+            .values("enrollment_id")
+            .annotate(t=Sum("total_clicks"))
+            .values_list("enrollment_id", "t")
+        )
+
+        par_resultat = {}
+        for enr_id, resultat in inscriptions.values_list("id", "final_result"):
+            par_resultat.setdefault(resultat, []).append(clics.get(enr_id, 0))
+
+        donnees = []
+        for resultat in self.ORDRE:
+            valeurs = par_resultat.get(resultat)
+            if not valeurs:
+                continue
+            donnees.append(
+                {
+                    "resultat": resultat,
+                    "inscrits": len(valeurs),
+                    "clics_moyens": round(sum(valeurs) / len(valeurs), 1),
+                    "clics_medians": round(median(valeurs), 1),
+                }
+            )
+        return Response(donnees)     

@@ -117,3 +117,17 @@ class TestAgent(DonneesDeTest):
     def test_question_trop_longue_refusee(self):
         reponse = self.client.post("/api/agent/ask/", {"question": "x" * 1001}, format="json")
         self.assertEqual(reponse.status_code, 400)
+
+
+class TestEngagementParResultat(DonneesDeTest):
+    def test_module_obligatoire(self):
+        reponse = self.client.get("/api/stats/engagement-par-resultat/")
+        self.assertEqual(reponse.status_code, 400)
+
+    def test_clics_moyens_par_resultat(self):
+        donnees = self.client.get("/api/stats/engagement-par-resultat/?code_module=AAA").json()
+        par_resultat = {d["resultat"]: d for d in donnees}
+        self.assertEqual(par_resultat["Pass"]["inscrits"], 1)
+        self.assertEqual(par_resultat["Pass"]["clics_moyens"], 500.0)
+        self.assertEqual(par_resultat["Withdrawn"]["inscrits"], 2)
+        self.assertEqual(par_resultat["Withdrawn"]["clics_moyens"], 0.0)
