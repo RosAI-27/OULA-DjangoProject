@@ -79,6 +79,106 @@ class EngagementParSemaineView(APIView):
             for d in data
         ]
         return Response(result)
+def calculer_scores_risque(module, presentation, jour):
+    """Calcule le score de risque de chaque étudiant d'un cours au jour de coupure.
+
+    Retourne une liste de dictionnaires (non triée). Le résultat final est joint
+    uniquement pour vérifier la pertinence du score : il n'entre pas dans le calcul.
+    """
+    # Inscriptions du cours, sans ceux déjà désinscrits avant le jour de coupure
+    inscriptions = list(
+        Enrollment.objects.filter(
+            course__code_module=module, course__code_presentation=presentation
+        )
+        .exclude(date_unregistration__lte=jour)
+        .select_related("student")
+    )
+
+    # Total des clics entre le début du cours et le jour de coupure
+    clics = dict(
+        Interaction.objects.filter(
+            enrollment__course__code_module=module,
+            enrollment__course__code_presentation=presentation,
+            date__gte=0,
+            date__lte=jour,
+        )
+        .values("enrollment_id")
+        .annotate(t=Sum("total_clicks"))
+        .values_list("enrollment_id", "t")
+    )
+
+    # Étudiants actifs pendant les 14 jours précédant la coupure
+    actifs_recents = set(
+        Interaction.objects.filter(
+            enrollment__course__code_module=module,
+            enrollment__course__code_presentation=presentation,
+            date__gt=jour - 14,
+            date__lte=jour,
+        )
+        .values_list("enrollment_id", flat=True)
+        .distinct()
+    )
+
+    # Moyenne des notes rendues avant la coupure
+    notes = {
+        n["enrollment_id"]: n["moy"]
+        for n in Assessment.objects.filter(
+            enrollment__course__code_module=module,
+            enrollment__course__code_presentation=presentation,
+            date_submitted__lte=jour,
+            score__isnull=False,
+        )
+        .values("enrollment_id")
+        .annotate(moy=Avg("score"))
+    }
+
+    # Seuil de "faible activité" : le premier quart des étudiants du cours
+    valeurs = sorted(clics.get(e.id, 0) for e in inscriptions)
+    seuil_faible = valeurs[len(valeurs) // 4] if valeurs else 0
+
+    etudiants = []
+    for e in inscriptions:
+        score = 0
+        motifs = []
+
+        c = clics.get(e.id, 0)
+        if c == 0:
+            score += 40
+            motifs.append("aucune activité sur la plateforme")
+        elif c < seuil_faible:
+            score += 25
+            motifs.append(f"activité faible ({c} clics)")
+
+        if e.id not in actifs_recents:
+            score += 30
+            motifs.append("aucune activité sur les 14 derniers jours")
+
+        if e.id not in notes:
+            score += 15
+            motifs.append("aucune évaluation rendue")
+        elif notes[e.id] < 40:
+            score += 30
+            motifs.append(f"notes basses (moyenne {notes[e.id]:.0f})")
+        elif notes[e.id] < 55:
+            score += 15
+            motifs.append(f"notes moyennes (moyenne {notes[e.id]:.0f})")
+
+        niveau = "eleve" if score >= 60 else "moyen" if score >= 30 else "faible"
+        etudiants.append(
+            {
+                "id_student": e.student.id_student,
+                "score_risque": score,
+                "niveau": niveau,
+                "total_clics": c,
+                "moyenne_notes": round(notes[e.id], 1) if e.id in notes else None,
+                "motifs": motifs,
+                # Uniquement pour vérifier la pertinence du score, pas utilisé dans le calcul
+                "resultat_final": e.final_result,
+            }
+        )
+    return etudiants
+
+
 class EtudiantsARisqueView(APIView):
     """Étudiants à risque de décrochage pour un module et une session.
 
@@ -104,98 +204,7 @@ class EtudiantsARisqueView(APIView):
             return Response({"erreur": "jour et limite doivent être des nombres entiers."}, status=400)
 
         niveau_demande = request.query_params.get("niveau")
-
-        # Inscriptions du cours, sans ceux déjà désinscrits avant le jour de coupure
-        inscriptions = list(
-            Enrollment.objects.filter(
-                course__code_module=module, course__code_presentation=presentation
-            )
-            .exclude(date_unregistration__lte=jour)
-            .select_related("student")
-        )
-
-        # Total des clics entre le début du cours et le jour de coupure
-        clics = dict(
-            Interaction.objects.filter(
-                enrollment__course__code_module=module,
-                enrollment__course__code_presentation=presentation,
-                date__gte=0,
-                date__lte=jour,
-            )
-            .values("enrollment_id")
-            .annotate(t=Sum("total_clicks"))
-            .values_list("enrollment_id", "t")
-        )
-
-        # Étudiants actifs pendant les 14 jours précédant la coupure
-        actifs_recents = set(
-            Interaction.objects.filter(
-                enrollment__course__code_module=module,
-                enrollment__course__code_presentation=presentation,
-                date__gt=jour - 14,
-                date__lte=jour,
-            )
-            .values_list("enrollment_id", flat=True)
-            .distinct()
-        )
-
-        # Moyenne des notes rendues avant la coupure
-        notes = {
-            n["enrollment_id"]: n["moy"]
-            for n in Assessment.objects.filter(
-                enrollment__course__code_module=module,
-                enrollment__course__code_presentation=presentation,
-                date_submitted__lte=jour,
-                score__isnull=False,
-            )
-            .values("enrollment_id")
-            .annotate(moy=Avg("score"))
-        }
-
-        # Seuil de "faible activité" : le premier quart des étudiants du cours
-        valeurs = sorted(clics.get(e.id, 0) for e in inscriptions)
-        seuil_faible = valeurs[len(valeurs) // 4] if valeurs else 0
-
-        etudiants = []
-        for e in inscriptions:
-            score = 0
-            motifs = []
-
-            c = clics.get(e.id, 0)
-            if c == 0:
-                score += 40
-                motifs.append("aucune activité sur la plateforme")
-            elif c < seuil_faible:
-                score += 25
-                motifs.append(f"activité faible ({c} clics)")
-
-            if e.id not in actifs_recents:
-                score += 30
-                motifs.append("aucune activité sur les 14 derniers jours")
-
-            if e.id not in notes:
-                score += 15
-                motifs.append("aucune évaluation rendue")
-            elif notes[e.id] < 40:
-                score += 30
-                motifs.append(f"notes basses (moyenne {notes[e.id]:.0f})")
-            elif notes[e.id] < 55:
-                score += 15
-                motifs.append(f"notes moyennes (moyenne {notes[e.id]:.0f})")
-
-            niveau = "eleve" if score >= 60 else "moyen" if score >= 30 else "faible"
-            etudiants.append(
-                {
-                    "id_student": e.student.id_student,
-                    "score_risque": score,
-                    "niveau": niveau,
-                    "total_clics": c,
-                    "moyenne_notes": round(notes[e.id], 1) if e.id in notes else None,
-                    "motifs": motifs,
-                    # Uniquement pour vérifier la pertinence du score, pas utilisé dans le calcul
-                    "resultat_final": e.final_result,
-                }
-            )
+        etudiants = calculer_scores_risque(module, presentation, jour)
 
         resume = {"eleve": 0, "moyen": 0, "faible": 0}
         for et in etudiants:
@@ -214,6 +223,63 @@ class EtudiantsARisqueView(APIView):
                 },
                 "resume": resume,
                 "etudiants": etudiants[:limite],
+            }
+        )
+
+
+class ValidationRisqueView(APIView):
+    """Compare le niveau de risque prédit au résultat final réel.
+
+    Paramètres : code_module et code_presentation (obligatoires), jour (défaut 60).
+    """
+
+    ECHEC = ("Fail", "Withdrawn")
+    REUSSITE = ("Pass", "Distinction")
+
+    @classmethod
+    def _stats(cls, resultats):
+        n = len(resultats)
+        if n == 0:
+            return {"etudiants": 0, "pct_echec_ou_abandon": None, "pct_reussite": None}
+        return {
+            "etudiants": n,
+            "pct_echec_ou_abandon": round(100 * sum(r in cls.ECHEC for r in resultats) / n, 1),
+            "pct_reussite": round(100 * sum(r in cls.REUSSITE for r in resultats) / n, 1),
+        }
+
+    def get(self, request):
+        module = request.query_params.get("code_module")
+        presentation = request.query_params.get("code_presentation")
+        if not module or not presentation:
+            return Response(
+                {"erreur": "Les paramètres code_module et code_presentation sont obligatoires."},
+                status=400,
+            )
+        try:
+            jour = int(request.query_params.get("jour", 60))
+        except ValueError:
+            return Response({"erreur": "jour doit être un nombre entier."}, status=400)
+
+        etudiants = calculer_scores_risque(module, presentation, jour)
+        if not etudiants:
+            return Response({"erreur": "Aucune donnée pour ce module et cette session."}, status=404)
+
+        groupes = {"eleve": [], "moyen": [], "faible": []}
+        for e in etudiants:
+            groupes[e["niveau"]].append(e["resultat_final"])
+
+        return Response(
+            {
+                "parametres": {
+                    "code_module": module,
+                    "code_presentation": presentation,
+                    "jour_coupure": jour,
+                },
+                "ensemble": self._stats([e["resultat_final"] for e in etudiants]),
+                "niveaux": [
+                    {"niveau": niveau, **self._stats(groupes[niveau])}
+                    for niveau in ("eleve", "moyen", "faible")
+                ],
             }
         )
 

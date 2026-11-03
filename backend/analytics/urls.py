@@ -12,6 +12,7 @@ from .api_views import (
     EngagementParResultatView,
     EngagementParSemaineView,
     EtudiantsARisqueView,
+    ValidationRisqueView,
     ReussiteParCoursView,
 )
 
@@ -26,6 +27,7 @@ urlpatterns = [
     path("stats/engagement-par-semaine/", EngagementParSemaineView.as_view()),
     path("stats/engagement-par-resultat/", EngagementParResultatView.as_view()),
     path("etudiants-a-risque/", EtudiantsARisqueView.as_view()),
+    path("etudiants-a-risque/validation/", ValidationRisqueView.as_view()),
     path("agent/ask/", AgentQuestionView.as_view()),
     path("", include(router.urls)),
 ]

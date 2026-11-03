@@ -185,3 +185,26 @@ class TestApiConsultation(DonneesDeTest):
         donnees = self.client.get("/api/assessments/?code_module=AAA").json()
         self.assertEqual(donnees["count"], 1)
         self.assertEqual(donnees["results"][0]["score"], 80.0)
+
+
+
+class TestValidationRisque(DonneesDeTest):
+    URL = "/api/etudiants-a-risque/validation/?code_module=AAA&code_presentation=2013J&jour=60"
+
+    def test_parametres_obligatoires(self):
+        reponse = self.client.get("/api/etudiants-a-risque/validation/?code_module=AAA")
+        self.assertEqual(reponse.status_code, 400)
+
+    def test_cours_sans_donnees(self):
+        reponse = self.client.get(
+            "/api/etudiants-a-risque/validation/?code_module=ZZZ&code_presentation=2013J"
+        )
+        self.assertEqual(reponse.status_code, 404)
+
+    def test_pourcentages_par_niveau(self):
+        donnees = self.client.get(self.URL).json()
+        self.assertEqual(donnees["ensemble"]["etudiants"], 2)
+        niveaux = {n["niveau"]: n for n in donnees["niveaux"]}
+        self.assertEqual(niveaux["eleve"]["pct_echec_ou_abandon"], 100.0)
+        self.assertEqual(niveaux["faible"]["pct_reussite"], 100.0)
+        self.assertIsNone(niveaux["moyen"]["pct_reussite"])

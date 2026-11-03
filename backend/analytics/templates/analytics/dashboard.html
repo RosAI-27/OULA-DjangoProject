@@ -112,6 +112,7 @@
       </div>
       <p class="info" id="infoRisque"></p>
       <div class="resume-risque" id="resumeRisque"></div>
+      <div id="validationRisque" class="info" style="margin-bottom:14px;"></div>
       <div style="overflow-x:auto;">
         <table>
           <thead>
@@ -225,6 +226,24 @@
     }
 
         const libellesNiveau = { eleve: "Élevé", moyen: "Moyen", faible: "Faible" };
+        async function chargerValidation(module, session, jour) {
+      const zone = document.getElementById("validationRisque");
+      zone.textContent = "";
+      try {
+        const reponse = await fetch("/api/etudiants-a-risque/validation/?code_module=" + module +
+                                    "&code_presentation=" + session + "&jour=" + jour);
+        const data = await reponse.json();
+        if (data.erreur) return;
+        const morceaux = data.niveaux.map(function (n) {
+          return n.etudiants === 0 ? null :
+            libellesNiveau[n.niveau] + " : " + n.pct_echec_ou_abandon + " % échouent ou abandonnent (" + n.etudiants + " étudiants)";
+        }).filter(Boolean);
+        zone.textContent = "Vérification a posteriori : " + morceaux.join(" — ") +
+          ". Moyenne du cours : " + data.ensemble.pct_echec_ou_abandon + " %.";
+      } catch (e) {
+        zone.textContent = "";
+      }
+    }
 
     async function chargerRisque() {
       const module = selModule.value;
@@ -244,6 +263,7 @@
       }
 
       info.textContent = "Chargement en cours...";
+      chargerValidation(module, session, jour);
       let url = "/api/etudiants-a-risque/?code_module=" + module +
                 "&code_presentation=" + session + "&jour=" + jour + "&limite=50";
       if (niveau) url += "&niveau=" + niveau;
