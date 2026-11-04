@@ -4,7 +4,7 @@
 
 OULA is a student-success analytics project built with Django and the Open University Learning Analytics Dataset (OULAD). Its purpose is to help a teaching team explore student engagement and academic outcomes, then investigate transparent early-warning indicators.
 
-The implementation is incremental: reliable data, clear metric definitions, tested API outputs, and explainable indicators come before a dashboard or agent interface. Predictive modelling is optional and must be justified by a clearly defined target and leakage-safe validation.
+The implementation was delivered in stages: source-data inspection and preparation, a relational Django backend, descriptive analytics, a REST API, a rule-based risk indicator, an interactive dashboard, and a conversational agent. The current risk indicator is a transparent heuristic, not a trained predictive model.
 
 ## 2. Dataset and relational grain
 
@@ -79,10 +79,13 @@ Django REST Framework API
               v
 Validated descriptive analytics
               |
-              +----> Early-withdrawal risk indicators (Phase 7)
+              +----> Rule-based early-withdrawal risk indicator
+              |                  |
+              v                  v
+         Dashboard <------ Retrospective validation
               |
               v
-Dashboard and evidence-grounded queryable agent (later work)
+       Conversational agent
 ```
 
 Notebooks are appropriate for exploration and documented experiments. Reusable transformations should live in scripts or Python modules so the workflow can be rerun consistently.
@@ -140,25 +143,27 @@ Withdrawals are reported separately and excluded from the completed-outcome deno
 
 The engagement-by-course endpoint reports aggregated measures such as total clicks, distinct active students, and interaction-record counts. Phase 6 added course-level engagement and success analytics, descriptive engagement/outcome analysis, course variation analysis, aggregate CSV reports, and automated tests.
 
-The Phase 6 checkpoint passed `python backend/manage.py check` and `python backend/manage.py test analytics` (5 tests). API aggregates were also reconciled against the database: 22 course groups, 38,343,063 clicks, and 8,459,320 interaction records matched.
+At the Phase 6 checkpoint, `python backend/manage.py check` and `python backend/manage.py test analytics` passed (5 tests). API aggregates were also reconciled against the database: 22 course groups, 38,343,063 clicks, and 8,459,320 interaction records matched. Later phases added dashboard and risk-indicator tests; run the current test suite to verify the integrated version.
 
 Engagement/outcome relationships are descriptive. Correlation does not establish causation. Registration-window duration is not a measure of actual VLE exposure.
 
 ## 8. Phase 7 — early-withdrawal risk indicators
 
-The next development phase defines transparent early-withdrawal indicators using a stated observation cutoff. The initial design uses a day-27 cutoff and must include only information available by the end of that day.
+The application implements an additive rule-based score at a selected course-day cutoff (day 60 by default). It uses VLE clicks and assessment scores recorded up to the cutoff. The final outcome is returned only for retrospective comparison and is not used to calculate the score.
 
-The primary task is to distinguish students who withdraw after the cutoff from students who remain enrolled beyond it, among students who are still registered at the cutoff. Students already withdrawn on or before the cutoff are not part of the active-at-cutoff prediction cohort. Missing unregistration dates for records marked Withdrawn do not provide a known withdrawal time and must be handled explicitly rather than silently assigned a label.
+The rules assign points for no recorded clicks, activity below a course-level lower-quartile threshold, no recorded activity in the preceding 14 days, no non-missing assessment score by the cutoff, and low or moderate mean assessment scores. Risk levels are high (60 or more), medium (30–59), and low (below 30).
 
-Candidate features from the early interaction window include total clicks, active days, distinct resources, interaction-record count, and indicators for no recorded early activity. Define the observation window carefully against registration day and the earliest available VLE day. Do not use full-course totals, final outcomes, future interactions, or post-cutoff assessment information as predictors.
+The score is not capped at 100; the listed rules can produce a total of up to 140. It must not be interpreted as a probability or percentage. The current cohort query excludes enrollments unregistered by the cutoff, but does not fully enforce that registration dates are present and on or before the cutoff. This remains a methodological limitation.
 
-Before modelling, validate cohort construction, target prevalence, missing event-time handling, and feature availability. Establish an interpretable baseline before trying more complex models. Split data by student where a student can contribute multiple enrolments, and report class-sensitive metrics, calibration, and limitations. These are design decisions to validate in Phase 7, not completed model results.
+A retrospective comparison is implemented for module AAA, presentation 2013J, at day 60. It covers 361 enrollments. The observed Fail-or-Withdrawn proportions were 85.7% in the high-risk group (7 enrollments), 64.3% in the medium-risk group (28), 18.1% in the low-risk group (326), and 23.0% overall. This single-course, single-cutoff comparison is descriptive and is not sufficient to establish general predictive performance.
 
-## 9. Queryable agent and dashboard
+## 9. Dashboard and conversational agent
 
-The planned agent should answer scoped questions such as “Which students in course X show signs of disengagement, and since when?” Responses must be grounded in interaction records or validated derived indicators. Where possible, return the observation window, last recorded activity day, change in activity, and the rule that triggered the flag.
+The dashboard is served at `/dashboard/` and uses Django templates and Chart.js. It displays overall enrollment and outcome indicators, success and withdrawal rates by module, weekly engagement, engagement by final outcome, risk scores and explanations, and a retrospective validation summary.
 
-The agent must not invent causes, claim certainty, or make decisions about students. Keep it read-only for the MVP. Build the dashboard and agent only after the underlying analytics and risk rules are tested.
+The LangChain agent uses three tools that call the project's REST API: success and withdrawal statistics by course, weekly engagement, and students flagged by the risk indicator. It is instructed to ground project figures in tool responses, ask for missing module or presentation context, explain risk reasons, and avoid treating scores as verdicts. It uses a configured Gemini model with fallback models.
+
+The agent requires a Google AI Studio API key and a running Django server. Its API base URL is configurable through `API_BASE_URL`. The dashboard loads Chart.js from a CDN.
 
 ## 10. Privacy and repository practices
 
