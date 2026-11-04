@@ -1,7 +1,7 @@
 # Data Quality and Missing-Value Policy
 
 **Project:** OULAD student engagement and success analytics  
-**Status:** Targeted missing-data checks completed; database-import validation remains open. Update only when a documented check or source justifies a change.
+**Status:** Targeted missing-data checks and local database-import validation completed. Grouped missingness summaries for selected fields and metric-specific handling decisions remain open.
 
 ## 1. Purpose and governing rule
 
@@ -77,7 +77,8 @@ For score-based metrics, state which records are eligible and report the denomin
 - [x] Inspect the 11 missing `assessments.date` records by assessment type.
 - [ ] Summarize `imd_band`, `week_from`, and `week_to` missingness by relevant course/presentation or categories before using these variables in comparisons.
 - [ ] Record the chosen rule next to every metric/model that is affected by missing values.
-- [ ] Validate database import counts, null counts, keys and relationships against the audited source tables after the Django models and import process are implemented.
+- [x] Validate imported model counts, required relationships, and aggregate click totals against the audited/prepared data.
+- [ ] Complete a row-level comparison of imported interaction records against the prepared CSV; count and total reconciliation alone does not establish row-by-row equivalence.
 
 These checks describe patterns and possible inconsistencies; they do not, by themselves, prove that data are Missing Completely At Random (MCAR), Missing At Random (MAR), or Missing Not At Random (MNAR). We should not claim one of these mechanisms without a defensible analysis and assumptions.
 
@@ -96,4 +97,4 @@ The default policy is therefore **preserve → investigate → document → hand
 5. Hughes, R. A., Heron, J., Sterne, J. A. C., & Tilling, K. (2023). *Assumptions and analysis planning in studies with missing data in multiple variables: moving beyond the MCAR/MAR/MNAR classification*. International Journal of Epidemiology, 52(4), 1268–1275. https://doi.org/10.1093/ije/dyac234 — explains why missing-data assumptions and method choice require substantive reasoning.
 
 ---
-This document records the checks completed so far. It does not claim that every missingness mechanism has been identified. Database import validation and the remaining grouped-missingness summaries are still open.
+This document records the checks completed so far. It does not claim that every missingness mechanism has been identified. The local import checks are complete at the aggregate and relationship level; the remaining grouped-missingness summaries and row-level interaction comparison are still open.
