@@ -80,17 +80,14 @@
       <h2>Engagement and final outcome (selected module)</h2>
       <p class="info">
         Mean and median platform clicks by student final outcome.
-        Attention : un étudiant qui abandonne en cours de route a moins de temps pour cliquer,
-        donc cet écart reflète en partie la durée de présence, pas seulement la motivation.
-        Une corrélation n'est pas une causalité.
+        Note: students who withdraw have less time to generate clicks. This difference partly reflects time enrolled, not only motivation. Correlation does not imply causation.
       </p>
       <canvas id="graphCorrelation" height="110"></canvas>
     </div>
         <div class="carte">
       <h2>Students flagged by the risk indicator</h2>
       <div class="avertissement">
-        Le score de risque est un <strong>indicateur d'aide à la décision</strong>, pas un verdict
-        sur l'étudiant. Il repose uniquement sur l'activité et les notes observées jusqu'au jour de coupure.
+        The risk score is a <strong>decision-support indicator</strong>, not a verdict about a student. It uses activity and assessment scores recorded up to the selected cutoff day.
       </div>
       <div class="filtres">
         <label>Cutoff day:
@@ -236,7 +233,7 @@
         if (data.erreur) return;
         const morceaux = data.niveaux.map(function (n) {
           return n.etudiants === 0 ? null :
-            libellesNiveau[n.niveau] + " : " + n.pct_echec_ou_abandon + " % ultimately failed or withdrew (" + n.etudiants + " enrollments)";
+            libellesNiveau[n.niveau] + ": " + n.pct_echec_ou_abandon + " % ultimately failed or withdrew (" + n.etudiants + " enrollments)";
         }).filter(Boolean);
         zone.textContent = "Retrospective check: " + morceaux.join(" — ") +
           ". Overall rate: " + data.ensemble.pct_echec_ou_abandon + " %.";
@@ -286,7 +283,7 @@
       ["eleve", "moyen", "faible"].forEach(function (n) {
         const p = document.createElement("span");
         p.className = "pastille " + n;
-        p.textContent = libellesNiveau[n] + " : " + data.resume[n];
+        p.textContent = libellesNiveau[n] + ": " + data.resume[n];
         resume.appendChild(p);
       });
 
