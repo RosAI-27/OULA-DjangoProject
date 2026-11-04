@@ -219,8 +219,10 @@ The totals matched.
 - Risk indicators should be defined transparently and evaluated before being used to guide decisions about individual students.
 - Demographic information should be handled carefully and should not be used to make unsupported assumptions about individual students.
 
-## 8. Current Scope and Next Phase
+## 8. Current Scope
 
-The source data have been audited, interaction data prepared, Django models migrated, and data imported and validated using the checks described above. The REST API and Phase 6 descriptive engagement analytics are implemented and covered by the current automated test suite.
+The source data have been audited, interaction data prepared, Django models migrated, and data imported and validated using the checks described above. The REST API and descriptive engagement analytics are implemented. The application also includes a rule-based early-withdrawal risk indicator, a retrospective comparison endpoint, an interactive dashboard, and a conversational agent that queries the project API.
 
-The next phase is to define and validate early-withdrawal risk indicators using an explicit prediction cutoff and only information available by that cutoff. The dashboard and evidence-grounded query agent remain later development tasks.
+The risk indicator is a transparent heuristic rather than a trained predictive model. Its current implementation has documented limitations: the additive score can exceed 100, and the risk cohort does not fully enforce registration-date eligibility at the selected cutoff. The retrospective check is limited to one course presentation and one cutoff. See [API, Dashboard, and Conversational Agent](api-dashboard-agent.md) for the implementation and limitations.
+
+The import validation confirms model counts, required relationships, and aggregate click-total reconciliation. These checks do not constitute a row-by-row comparison of every imported interaction against the prepared CSV.
