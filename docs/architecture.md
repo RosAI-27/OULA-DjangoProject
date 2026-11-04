@@ -153,7 +153,7 @@ The application implements an additive rule-based score at a selected course-day
 
 The rules assign points for no recorded clicks, activity below a course-level lower-quartile threshold, no recorded activity in the preceding 14 days, no non-missing assessment score by the cutoff, and low or moderate mean assessment scores. Risk levels are high (60 or more), medium (30–59), and low (below 30).
 
-The score is not capped at 100; the listed rules can produce a total of up to 140. It must not be interpreted as a probability or percentage. The current cohort query excludes enrollments unregistered by the cutoff, but does not fully enforce that registration dates are present and on or before the cutoff. This remains a methodological limitation.
+The current rules use mutually exclusive branches for the click-activity and assessment-score signals, so the maximum attainable total is 100 points. This is a heuristic point score, not a probability or percentage. The current cohort query excludes enrollments unregistered by the cutoff, but does not fully enforce that registration dates are present and on or before the cutoff. This remains a methodological limitation.
 
 A retrospective comparison is implemented for module AAA, presentation 2013J, at day 60. It covers 361 enrollments. The observed Fail-or-Withdrawn proportions were 85.7% in the high-risk group (7 enrollments), 64.3% in the medium-risk group (28), 18.1% in the low-risk group (326), and 23.0% overall. This single-course, single-cutoff comparison is descriptive and is not sufficient to establish general predictive performance.
 
