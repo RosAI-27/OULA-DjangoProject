@@ -11,4 +11,4 @@ The backend includes:
 - Aggregated course-level engagement and success-rate analytics.
 - Automated tests for the analytics application.
 
-See [architecture and implementation decisions](../docs/architecture.md) for model grain, data-quality decisions, API routes, validation evidence, and Phase 7 scope.
+See [architecture and implementation decisions](../docs/architecture.md) for model grain, data-quality decisions, API routes, validation evidence, and the completed risk-indicator, dashboard, and agent work.
