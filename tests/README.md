@@ -5,9 +5,9 @@
 The Phase 6 validation checkpoint passed:
 
 - `python backend/manage.py check` — no system-check issues.
-- `python backend/manage.py test analytics` — 5 tests passed.
+- `python backend/manage.py test analytics` — 5 tests passed at that checkpoint.
 
-The tests cover the implemented analytics application at the current project checkpoint. Passing tests do not replace source-to-database reconciliation or methodological review of the analytics.
+Subsequent phases added tests for dashboard statistics, risk scoring and ranking, cutoff-based exclusions, retrospective validation, and agent-request validation. Run `python manage.py test analytics` from `backend/` to execute the current suite. Passing tests do not replace source-to-database reconciliation or methodological review of the analytics.
 
 ## Test principles
 
