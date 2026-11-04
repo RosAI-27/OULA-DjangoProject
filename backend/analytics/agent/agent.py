@@ -1,6 +1,4 @@
-"""Agent conversationnel : un modèle de langage qui utilise les outils de tools.py.
-
-Si un modèle est indisponible (surcharge, quota), l'agent essaie le suivant.
+"""Conversational analytics agent using the tools defined in tools.py. If a model is unavailable (for example, due to capacity or quota), the agent tries the next configured model.
 """
 import os
 
@@ -18,7 +16,7 @@ load_dotenv()
 
 CONSIGNES = """You are an analytics assistant for a teaching team. Answer questions in English about student success and engagement in the Open University Learning Analytics Dataset (OULAD).
 
-Règles :
+Rules:
 - Use ONLY the data returned by your tools. Never invent figures.
 - If the question is missing context (module or presentation), ask for it instead of guessing. Valid modules include AAA, BBB, CCC, DDD, EEE, FFF, and GGG; presentations include 2013B, 2013J, 2014B, and 2014J.
 - When discussing students flagged by the risk indicator, explain the reasons returned by the tool.
@@ -31,7 +29,7 @@ OUTILS = [get_reussite_par_cours, get_engagement_par_semaine, get_etudiants_a_ri
 
 
 def _liste_modeles():
-    """Modèle principal, puis modèles de secours (séparés par des virgules)."""
+    """Returns the primary model followed by fallback models (comma-separated)."""
     principal = os.getenv("LLM_MODEL", "").strip()
     secours = os.getenv("LLM_MODELES_SECOURS", "")
     modeles = [principal] + [m.strip() for m in secours.split(",")]
@@ -45,7 +43,7 @@ def _liste_modeles():
 
 
 def _extraire_texte(contenu):
-    """Selon le fournisseur, la réponse est du texte ou une liste de blocs."""
+    """Depending on the provider, the response may be plain text or a list of content blocks."""
     if isinstance(contenu, str):
         return contenu
     morceaux = []
@@ -80,6 +78,6 @@ def poser_question(question: str) -> str:
             )
             return _extraire_texte(resultat["messages"][-1].content)
         except Exception as e:
-            print(f"Modèle {modele} indisponible : {e!r}")
+            print(f"Model {modele} is unavailable: {e!r}")
             derniere_erreur = e
     raise derniere_erreur
