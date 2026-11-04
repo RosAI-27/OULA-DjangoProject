@@ -20,7 +20,7 @@ class AgentQuestionView(APIView):
         try:
             reponse = poser_question(question)
         except Exception as e:
-            print("Agent error:", repr(e))  # visible dans le terminal du serveur
+            print("Agent error:", repr(e))  # visible in the server terminal
             return Response(
                 {"erreur": "The assistant took too long to respond. Please try again or check your connection."},
                 status=502,
