@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tableau de bord OULAD</title>
+  <title>OULAD Analytics Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; margin: 0; background: #f4f6f9; color: #222; }
@@ -46,10 +46,10 @@
 
   <main>
     <div class="filtres">
-      <label>Module :
+      <label>Module:
         <select id="filtreModule"></select>
       </label>
-      <label>Session :
+      <label>Presentation:
         <select id="filtreSession">
           <option value="">All presentations</option>
           <option value="2013B">2013B</option>
@@ -95,10 +95,10 @@
       <div class="filtres">
         <label>Cutoff day:
           <select id="filtreJour">
-            <option value="30">Jour 30</option>
-            <option value="60" selected>Jour 60</option>
-            <option value="90">Jour 90</option>
-            <option value="120">Jour 120</option>
+            <option value="30">Day 30</option>
+            <option value="60" selected>Day 60</option>
+            <option value="90">Day 90</option>
+            <option value="120">Day 120</option>
           </select>
         </label>
         <label>Risk level:
@@ -119,7 +119,7 @@
             <tr>
               <th>Student</th>
               <th>Score</th>
-              <th>Niveau</th>
+              <th>Risk level</th>
               <th>Clicks</th>
               <th>Mean score</th>
               <th>Reasons</th>
@@ -162,7 +162,7 @@
       const reponse = await fetch(url);
       const data = await reponse.json();
 
-      // Remplir la liste des modules une seule fois
+      // Populate the module list once
       if (!modulesCharges && data.length > 0) {
         data.forEach(function (d) {
           const opt = document.createElement("option");
@@ -173,26 +173,26 @@
         modulesCharges = true;
       }
 
-      // Cartes de chiffres clés (moyennes pondérées par le nombre d'inscrits)
+      // Key metric cards (weighted by enrollment count)
       let total = 0, somReussite = 0, somAbandon = 0;
       data.forEach(function (d) {
         total += d.total;
         somReussite += d.total * d.taux_reussite;
         somAbandon += d.total * d.taux_abandon;
       });
-      document.getElementById("kpiInscrits").textContent = total.toLocaleString("fr-FR");
+      document.getElementById("kpiInscrits").textContent = total.toLocaleString("en-US");
       document.getElementById("kpiReussite").textContent = total ? (somReussite / total).toFixed(1) + " %" : "-";
       document.getElementById("kpiAbandon").textContent = total ? (somAbandon / total).toFixed(1) + " %" : "-";
 
-      // Graphique en barres
+      // Bar chart
       if (graphReussite) graphReussite.destroy();
       graphReussite = new Chart(document.getElementById("graphReussite"), {
         type: "bar",
         data: {
           labels: data.map(function (d) { return d.code_module; }),
           datasets: [
-            { label: "Taux de réussite (%)", data: data.map(function (d) { return d.taux_reussite; }) },
-            { label: "Taux d'abandon (%)", data: data.map(function (d) { return d.taux_abandon; }) }
+            { label: "Success rate (%)", data: data.map(function (d) { return d.taux_reussite; }) },
+            { label: "Withdrawal rate (%)", data: data.map(function (d) { return d.taux_abandon; }) }
           ]
         },
         options: { scales: { y: { beginAtZero: true, max: 100 } } }
@@ -218,7 +218,7 @@
         data: {
           labels: data.map(function (d) { return "S" + d.semaine; }),
           datasets: [
-            { label: "Clicks par étudiant actif", data: data.map(function (d) { return d.clics_par_etudiant; }) }
+            { label: "Clicks per active enrollment", data: data.map(function (d) { return d.clics_par_etudiant; }) }
           ]
         },
         options: { scales: { y: { beginAtZero: true } } }
@@ -239,7 +239,7 @@
             libellesNiveau[n.niveau] + " : " + n.pct_echec_ou_abandon + " % ultimately failed or withdrew (" + n.etudiants + " enrollments)";
         }).filter(Boolean);
         zone.textContent = "Retrospective check: " + morceaux.join(" — ") +
-          ". Mediumne du cours : " + data.ensemble.pct_echec_ou_abandon + " %.";
+          ". Overall rate: " + data.ensemble.pct_echec_ou_abandon + " %.";
       } catch (e) {
         zone.textContent = "";
       }
@@ -258,7 +258,7 @@
       resume.innerHTML = "";
 
       if (!module || !session) {
-        info.textContent = "Choisissez un module et une session précise (pas « All presentations ») pour afficher les étudiants à risque.";
+        info.textContent = "Select a module and a specific presentation (not “All presentations”) to display risk indicators.";
         return;
       }
 
@@ -278,7 +278,7 @@
 
       const total = data.resume.eleve + data.resume.moyen + data.resume.faible;
       if (total === 0) {
-        info.textContent = "No data found for module " + module + " en session " + session + " (this module-presentation combination may not exist).";
+        info.textContent = "No data found for module " + module + " in presentation " + session + " (this module-presentation combination may not exist).";
         return;
       }
 
@@ -311,10 +311,10 @@
     }
     let graphCorrelation = null;
     const libellesResultat = {
-      Distinction: "Mention (Distinction)",
-      Pass: "Réussite (Pass)",
-      Fail: "Échec (Fail)",
-      Withdrawn: "Abandon (Withdrawn)"
+      Distinction: "Distinction",
+      Pass: "Pass",
+      Fail: "Fail",
+      Withdrawn: "Withdrawn"
     };
 
     async function chargerCorrelation() {
@@ -335,8 +335,8 @@
         data: {
           labels: data.map(function (d) { return libellesResultat[d.resultat] + " (" + d.inscrits + " enrollments)"; }),
           datasets: [
-            { label: "Clicks moyens", data: data.map(function (d) { return d.clics_moyens; }) },
-            { label: "Clicks médians", data: data.map(function (d) { return d.clics_medians; }) }
+            { label: "Mean clicks", data: data.map(function (d) { return d.clics_moyens; }) },
+            { label: "Median clicks", data: data.map(function (d) { return d.clics_medians; }) }
           ]
         },
         options: { scales: { y: { beginAtZero: true } } }
@@ -361,7 +361,7 @@
 
     toutCharger();
     
-    // ---- Assistant (chat) ----
+    // ---- Conversational assistant ----
     const zoneMessages = document.getElementById("chatMessages");
     const champQuestion = document.getElementById("chatQuestion");
     const boutonSend = document.getElementById("chatSend");
