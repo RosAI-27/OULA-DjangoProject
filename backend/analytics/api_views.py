@@ -193,7 +193,7 @@ class EtudiantsARisqueView(APIView):
         if not module or not presentation:
             return Response(
                 {"erreur": "The code_module and code_presentation parameters are required, "
-                           "par exemple ?code_module=AAA&code_presentation=2013J"},
+                           "for example ?code_module=AAA&code_presentation=2013J"},
                 status=400,
             )
 
