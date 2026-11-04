@@ -1,7 +1,6 @@
-"""Outils de l'agent : chaque fonction interroge un endpoint de l'API du projet.
+"""Agent tools: each function queries one endpoint of the project API.
 
-Les docstrings sont importantes : plus tard, c'est elles que l'agent lira
-pour décider quel outil utiliser.
+Tool docstrings help the agent decide which tool to call.
 """
 import os
 
