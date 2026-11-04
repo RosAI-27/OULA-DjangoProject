@@ -252,7 +252,7 @@ class ValidationRisqueView(APIView):
         presentation = request.query_params.get("code_presentation")
         if not module or not presentation:
             return Response(
-                {"erreur": "Les paramètres code_module et code_presentation sont obligatoires."},
+                {"erreur": "The code_module and code_presentation parameters are required."},
                 status=400,
             )
         try:
@@ -296,7 +296,7 @@ class EngagementParResultatView(APIView):
         presentation = request.query_params.get("code_presentation")
         if not module:
             return Response(
-                {"erreur": "Le paramètre code_module est obligatoire, par exemple ?code_module=AAA"},
+                {"erreur": "The code_module parameter is required, for example ?code_module=AAA"},
                 status=400,
             )
 
