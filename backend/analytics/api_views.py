@@ -7,7 +7,7 @@ from .models import Assessment, Enrollment, Interaction
 
 
 class ReussiteParCoursView(APIView):
-    """Taux de réussite et d'abandon par module, filtrable par session."""
+    """Success and withdrawal rates by module, optionally filtered by presentation."""
 
     def get(self, request):
         qs = Enrollment.objects.all()
@@ -39,7 +39,7 @@ class ReussiteParCoursView(APIView):
 
 
 class EngagementParSemaineView(APIView):
-    """Clics par semaine de cours, pour un module (obligatoire) et une session (optionnelle)."""
+    """Weekly course clicks for a required module and an optional presentation."""
 
     def get(self, request):
         module = request.query_params.get("code_module")
@@ -47,7 +47,7 @@ class EngagementParSemaineView(APIView):
 
         if not module:
             return Response(
-                {"erreur": "Le paramètre code_module est obligatoire, par exemple ?code_module=AAA"},
+                {"erreur": "The code_module parameter is required, for example ?code_module=AAA"},
                 status=400,
             )
 
@@ -144,24 +144,24 @@ def calculer_scores_risque(module, presentation, jour):
         c = clics.get(e.id, 0)
         if c == 0:
             score += 40
-            motifs.append("aucune activité sur la plateforme")
+            motifs.append("No recorded platform clicks")
         elif c < seuil_faible:
             score += 25
-            motifs.append(f"activité faible ({c} clics)")
+            motifs.append(f"Low recorded activity ({c} clicks)")
 
         if e.id not in actifs_recents:
             score += 30
-            motifs.append("aucune activité sur les 14 derniers jours")
+            motifs.append("No recorded activity in the previous 14 days")
 
         if e.id not in notes:
             score += 15
-            motifs.append("aucune évaluation rendue")
+            motifs.append("No non-missing assessment score recorded by the cutoff")
         elif notes[e.id] < 40:
             score += 30
-            motifs.append(f"notes basses (moyenne {notes[e.id]:.0f})")
+            motifs.append(f"Low mean assessment score ({notes[e.id]:.0f})")
         elif notes[e.id] < 55:
             score += 15
-            motifs.append(f"notes moyennes (moyenne {notes[e.id]:.0f})")
+            motifs.append(f"Moderate mean assessment score ({notes[e.id]:.0f})")
 
         niveau = "eleve" if score >= 60 else "moyen" if score >= 30 else "faible"
         etudiants.append(
@@ -201,7 +201,7 @@ class EtudiantsARisqueView(APIView):
             jour = int(request.query_params.get("jour", 60))
             limite = int(request.query_params.get("limite", 50))
         except ValueError:
-            return Response({"erreur": "jour et limite doivent être des nombres entiers."}, status=400)
+            return Response({"erreur": "jour and limite must be integers."}, status=400)
 
         niveau_demande = request.query_params.get("niveau")
         etudiants = calculer_scores_risque(module, presentation, jour)
@@ -258,11 +258,11 @@ class ValidationRisqueView(APIView):
         try:
             jour = int(request.query_params.get("jour", 60))
         except ValueError:
-            return Response({"erreur": "jour doit être un nombre entier."}, status=400)
+            return Response({"erreur": "jour must be an integer."}, status=400)
 
         etudiants = calculer_scores_risque(module, presentation, jour)
         if not etudiants:
-            return Response({"erreur": "Aucune donnée pour ce module et cette session."}, status=404)
+            return Response({"erreur": "No data found for this module presentation."}, status=404)
 
         groupes = {"eleve": [], "moyen": [], "faible": []}
         for e in etudiants:
@@ -284,7 +284,7 @@ class ValidationRisqueView(APIView):
         )
 
 class EngagementParResultatView(APIView):
-    """Engagement moyen (clics sur tout le cours) selon le résultat final des étudiants.
+    """Mean and median full-course click totals grouped by student final outcome.
 
     Paramètres : code_module (obligatoire), code_presentation (optionnel).
     """
