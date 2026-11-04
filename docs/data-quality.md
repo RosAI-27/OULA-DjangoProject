@@ -80,7 +80,7 @@ The processing logic is kept in `scripts/prepare_interactions.py`. It reads `stu
 
 The source audit and interaction preparation are complete for the audited archive. The five-model Django backend, controlled import, REST API, engagement analytics, rule-based risk indicator, dashboard, conversational agent, and automated tests have been implemented.
 
-The current risk indicator is a transparent heuristic, not a trained predictive model. Its retrospective check is limited to one course presentation and one cutoff. The current implementation also needs stricter registration-date eligibility checks and a defined score scale; see [API, Dashboard, and Conversational Agent](api-dashboard-agent.md).
+The current risk indicator is a transparent heuristic, not a trained predictive model. Its retrospective check is limited to one course presentation and one cutoff. The current implementation also needs stricter registration-date eligibility checks; the mutually exclusive scoring rules have a maximum attainable total of 100 points. See [API, Dashboard, and Conversational Agent](api-dashboard-agent.md).
 
 The local import was validated using model counts, required relationships, and aggregate click-total reconciliation. These checks do not establish a row-by-row comparison of all imported interactions with the prepared CSV.
 
