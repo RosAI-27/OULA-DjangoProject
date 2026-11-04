@@ -80,12 +80,12 @@ class EngagementParSemaineView(APIView):
         ]
         return Response(result)
 def calculer_scores_risque(module, presentation, jour):
-    """Calcule le score de risque de chaque étudiant d'un cours au jour de coupure.
+    """Calculates the risk score for each enrollment in a course at the selected cutoff day.
 
-    Retourne une liste de dictionnaires (non triée). Le résultat final est joint
-    uniquement pour vérifier la pertinence du score : il n'entre pas dans le calcul.
+    Returns an unsorted list of dictionaries. The final outcome is included only
+    for retrospective validation; it is not used to calculate the score.
     """
-    # Inscriptions du cours, sans ceux déjà désinscrits avant le jour de coupure
+    # Course enrollments, excluding those already unregistered by the cutoff day
     inscriptions = list(
         Enrollment.objects.filter(
             course__code_module=module, course__code_presentation=presentation
@@ -94,7 +94,7 @@ def calculer_scores_risque(module, presentation, jour):
         .select_related("student")
     )
 
-    # Total des clics entre le début du cours et le jour de coupure
+    # Total clicks from course day zero through the cutoff day
     clics = dict(
         Interaction.objects.filter(
             enrollment__course__code_module=module,
@@ -107,7 +107,7 @@ def calculer_scores_risque(module, presentation, jour):
         .values_list("enrollment_id", "t")
     )
 
-    # Étudiants actifs pendant les 14 jours précédant la coupure
+    # Enrollments with recorded activity during the 14 days before the cutoff
     actifs_recents = set(
         Interaction.objects.filter(
             enrollment__course__code_module=module,
@@ -119,7 +119,7 @@ def calculer_scores_risque(module, presentation, jour):
         .distinct()
     )
 
-    # Moyenne des notes rendues avant la coupure
+    # Mean non-missing assessment score submitted by the cutoff
     notes = {
         n["enrollment_id"]: n["moy"]
         for n in Assessment.objects.filter(
@@ -132,7 +132,7 @@ def calculer_scores_risque(module, presentation, jour):
         .annotate(moy=Avg("score"))
     }
 
-    # Seuil de "faible activité" : le premier quart des étudiants du cours
+    # Low-activity threshold: the lower-quartile course click count
     valeurs = sorted(clics.get(e.id, 0) for e in inscriptions)
     seuil_faible = valeurs[len(valeurs) // 4] if valeurs else 0
 
@@ -172,7 +172,7 @@ def calculer_scores_risque(module, presentation, jour):
                 "total_clics": c,
                 "moyenne_notes": round(notes[e.id], 1) if e.id in notes else None,
                 "motifs": motifs,
-                # Uniquement pour vérifier la pertinence du score, pas utilisé dans le calcul
+                # Included only for retrospective validation; not used in the score calculation
                 "resultat_final": e.final_result,
             }
         )
@@ -180,11 +180,11 @@ def calculer_scores_risque(module, presentation, jour):
 
 
 class EtudiantsARisqueView(APIView):
-    """Étudiants à risque de décrochage pour un module et une session.
+    """Enrollments flagged by the risk indicator for one module presentation.
 
-    Paramètres : code_module (obligatoire), code_presentation (obligatoire),
-    jour (jour de coupure, défaut 60), niveau (optionnel : eleve, moyen, faible),
-    limite (nombre max de résultats, défaut 50).
+    Parameters: required code_module and code_presentation;
+    jour (cutoff day, default 60); niveau (optional: eleve, moyen, faible);
+    limite (maximum results, default 50).
     """
 
     def get(self, request):
@@ -192,7 +192,7 @@ class EtudiantsARisqueView(APIView):
         presentation = request.query_params.get("code_presentation")
         if not module or not presentation:
             return Response(
-                {"erreur": "Les paramètres code_module et code_presentation sont obligatoires, "
+                {"erreur": "The code_module and code_presentation parameters are required, "
                            "par exemple ?code_module=AAA&code_presentation=2013J"},
                 status=400,
             )
@@ -228,9 +228,9 @@ class EtudiantsARisqueView(APIView):
 
 
 class ValidationRisqueView(APIView):
-    """Compare le niveau de risque prédit au résultat final réel.
+    """Compares risk levels with the observed final outcome.
 
-    Paramètres : code_module et code_presentation (obligatoires), jour (défaut 60).
+    Parameters: required code_module and code_presentation; jour (cutoff day, default 60).
     """
 
     ECHEC = ("Fail", "Withdrawn")
@@ -286,7 +286,7 @@ class ValidationRisqueView(APIView):
 class EngagementParResultatView(APIView):
     """Mean and median full-course click totals grouped by student final outcome.
 
-    Paramètres : code_module (obligatoire), code_presentation (optionnel).
+    Parameters: required code_module; optional code_presentation.
     """
 
     ORDRE = ["Distinction", "Pass", "Fail", "Withdrawn"]
