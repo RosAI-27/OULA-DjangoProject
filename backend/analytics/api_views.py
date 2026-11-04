@@ -7,7 +7,7 @@ from .models import Assessment, Enrollment, Interaction
 
 
 class ReussiteParCoursView(APIView):
-    """Taux de réussite et d'abandon par module, filtrable par session."""
+    """Success and withdrawal rates by module, optionally filtered by presentation."""
 
     def get(self, request):
         qs = Enrollment.objects.all()
@@ -39,7 +39,7 @@ class ReussiteParCoursView(APIView):
 
 
 class EngagementParSemaineView(APIView):
-    """Clics par semaine de cours, pour un module (obligatoire) et une session (optionnelle)."""
+    """Weekly course clicks for a required module and an optional presentation."""
 
     def get(self, request):
         module = request.query_params.get("code_module")
@@ -47,7 +47,7 @@ class EngagementParSemaineView(APIView):
 
         if not module:
             return Response(
-                {"erreur": "Le paramètre code_module est obligatoire, par exemple ?code_module=AAA"},
+                {"erreur": "The code_module parameter is required, for example ?code_module=AAA"},
                 status=400,
             )
 
@@ -80,12 +80,12 @@ class EngagementParSemaineView(APIView):
         ]
         return Response(result)
 def calculer_scores_risque(module, presentation, jour):
-    """Calcule le score de risque de chaque étudiant d'un cours au jour de coupure.
+    """Calculates the risk score for each enrollment in a course at the selected cutoff day.
 
-    Retourne une liste de dictionnaires (non triée). Le résultat final est joint
-    uniquement pour vérifier la pertinence du score : il n'entre pas dans le calcul.
+    Returns an unsorted list of dictionaries. The final outcome is included only
+    for retrospective validation; it is not used to calculate the score.
     """
-    # Inscriptions du cours, sans ceux déjà désinscrits avant le jour de coupure
+    # Course enrollments, excluding those already unregistered by the cutoff day
     inscriptions = list(
         Enrollment.objects.filter(
             course__code_module=module, course__code_presentation=presentation
@@ -94,7 +94,7 @@ def calculer_scores_risque(module, presentation, jour):
         .select_related("student")
     )
 
-    # Total des clics entre le début du cours et le jour de coupure
+    # Total clicks from course day zero through the cutoff day
     clics = dict(
         Interaction.objects.filter(
             enrollment__course__code_module=module,
@@ -107,7 +107,7 @@ def calculer_scores_risque(module, presentation, jour):
         .values_list("enrollment_id", "t")
     )
 
-    # Étudiants actifs pendant les 14 jours précédant la coupure
+    # Enrollments with recorded activity during the 14 days before the cutoff
     actifs_recents = set(
         Interaction.objects.filter(
             enrollment__course__code_module=module,
@@ -119,7 +119,7 @@ def calculer_scores_risque(module, presentation, jour):
         .distinct()
     )
 
-    # Moyenne des notes rendues avant la coupure
+    # Mean non-missing assessment score submitted by the cutoff
     notes = {
         n["enrollment_id"]: n["moy"]
         for n in Assessment.objects.filter(
@@ -132,7 +132,7 @@ def calculer_scores_risque(module, presentation, jour):
         .annotate(moy=Avg("score"))
     }
 
-    # Seuil de "faible activité" : le premier quart des étudiants du cours
+    # Low-activity threshold: the lower-quartile course click count
     valeurs = sorted(clics.get(e.id, 0) for e in inscriptions)
     seuil_faible = valeurs[len(valeurs) // 4] if valeurs else 0
 
@@ -144,24 +144,24 @@ def calculer_scores_risque(module, presentation, jour):
         c = clics.get(e.id, 0)
         if c == 0:
             score += 40
-            motifs.append("aucune activité sur la plateforme")
+            motifs.append("No recorded platform clicks")
         elif c < seuil_faible:
             score += 25
-            motifs.append(f"activité faible ({c} clics)")
+            motifs.append(f"Low recorded activity ({c} clicks)")
 
         if e.id not in actifs_recents:
             score += 30
-            motifs.append("aucune activité sur les 14 derniers jours")
+            motifs.append("No recorded activity in the previous 14 days")
 
         if e.id not in notes:
             score += 15
-            motifs.append("aucune évaluation rendue")
+            motifs.append("No non-missing assessment score recorded by the cutoff")
         elif notes[e.id] < 40:
             score += 30
-            motifs.append(f"notes basses (moyenne {notes[e.id]:.0f})")
+            motifs.append(f"Low mean assessment score ({notes[e.id]:.0f})")
         elif notes[e.id] < 55:
             score += 15
-            motifs.append(f"notes moyennes (moyenne {notes[e.id]:.0f})")
+            motifs.append(f"Moderate mean assessment score ({notes[e.id]:.0f})")
 
         niveau = "eleve" if score >= 60 else "moyen" if score >= 30 else "faible"
         etudiants.append(
@@ -172,7 +172,7 @@ def calculer_scores_risque(module, presentation, jour):
                 "total_clics": c,
                 "moyenne_notes": round(notes[e.id], 1) if e.id in notes else None,
                 "motifs": motifs,
-                # Uniquement pour vérifier la pertinence du score, pas utilisé dans le calcul
+                # Included only for retrospective validation; not used in the score calculation
                 "resultat_final": e.final_result,
             }
         )
@@ -180,11 +180,11 @@ def calculer_scores_risque(module, presentation, jour):
 
 
 class EtudiantsARisqueView(APIView):
-    """Étudiants à risque de décrochage pour un module et une session.
+    """Enrollments flagged by the risk indicator for one module presentation.
 
-    Paramètres : code_module (obligatoire), code_presentation (obligatoire),
-    jour (jour de coupure, défaut 60), niveau (optionnel : eleve, moyen, faible),
-    limite (nombre max de résultats, défaut 50).
+    Parameters: required code_module and code_presentation;
+    jour (cutoff day, default 60); niveau (optional: eleve, moyen, faible);
+    limite (maximum results, default 50).
     """
 
     def get(self, request):
@@ -192,8 +192,8 @@ class EtudiantsARisqueView(APIView):
         presentation = request.query_params.get("code_presentation")
         if not module or not presentation:
             return Response(
-                {"erreur": "Les paramètres code_module et code_presentation sont obligatoires, "
-                           "par exemple ?code_module=AAA&code_presentation=2013J"},
+                {"erreur": "The code_module and code_presentation parameters are required, "
+                           "for example ?code_module=AAA&code_presentation=2013J"},
                 status=400,
             )
 
@@ -201,7 +201,7 @@ class EtudiantsARisqueView(APIView):
             jour = int(request.query_params.get("jour", 60))
             limite = int(request.query_params.get("limite", 50))
         except ValueError:
-            return Response({"erreur": "jour et limite doivent être des nombres entiers."}, status=400)
+            return Response({"erreur": "jour and limite must be integers."}, status=400)
 
         niveau_demande = request.query_params.get("niveau")
         etudiants = calculer_scores_risque(module, presentation, jour)
@@ -228,9 +228,9 @@ class EtudiantsARisqueView(APIView):
 
 
 class ValidationRisqueView(APIView):
-    """Compare le niveau de risque prédit au résultat final réel.
+    """Compares risk levels with the observed final outcome.
 
-    Paramètres : code_module et code_presentation (obligatoires), jour (défaut 60).
+    Parameters: required code_module and code_presentation; jour (cutoff day, default 60).
     """
 
     ECHEC = ("Fail", "Withdrawn")
@@ -252,17 +252,17 @@ class ValidationRisqueView(APIView):
         presentation = request.query_params.get("code_presentation")
         if not module or not presentation:
             return Response(
-                {"erreur": "Les paramètres code_module et code_presentation sont obligatoires."},
+                {"erreur": "The code_module and code_presentation parameters are required."},
                 status=400,
             )
         try:
             jour = int(request.query_params.get("jour", 60))
         except ValueError:
-            return Response({"erreur": "jour doit être un nombre entier."}, status=400)
+            return Response({"erreur": "jour must be an integer."}, status=400)
 
         etudiants = calculer_scores_risque(module, presentation, jour)
         if not etudiants:
-            return Response({"erreur": "Aucune donnée pour ce module et cette session."}, status=404)
+            return Response({"erreur": "No data found for this module presentation."}, status=404)
 
         groupes = {"eleve": [], "moyen": [], "faible": []}
         for e in etudiants:
@@ -284,9 +284,9 @@ class ValidationRisqueView(APIView):
         )
 
 class EngagementParResultatView(APIView):
-    """Engagement moyen (clics sur tout le cours) selon le résultat final des étudiants.
+    """Mean and median full-course click totals grouped by student final outcome.
 
-    Paramètres : code_module (obligatoire), code_presentation (optionnel).
+    Parameters: required code_module; optional code_presentation.
     """
 
     ORDRE = ["Distinction", "Pass", "Fail", "Withdrawn"]
@@ -296,7 +296,7 @@ class EngagementParResultatView(APIView):
         presentation = request.query_params.get("code_presentation")
         if not module:
             return Response(
-                {"erreur": "Le paramètre code_module est obligatoire, par exemple ?code_module=AAA"},
+                {"erreur": "The code_module parameter is required, for example ?code_module=AAA"},
                 status=400,
             )
 

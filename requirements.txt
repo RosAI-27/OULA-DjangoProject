@@ -9,3 +9,8 @@ numpy>=2.0,<3.0
 
 # Environment configuration
 python-dotenv>=1.0,<2.0
+
+# Conversational analytics agent
+requests
+langchain
+langchain-google-genai

@@ -1,372 +1,319 @@
-# OULA : analyse de la réussite et de l'engagement étudiant
+# OULA — Student Success and Engagement Analytics
 
-OULA est un projet d'analyse de la réussite étudiante construit avec Django et l'
-[Open University Learning Analytics Dataset (OULAD)](https://analyse.kmi.open.ac.uk/open_dataset).
-Il organise les identités étudiantes, les présentations de cours, les inscriptions, les
-évaluations et les interactions avec la plateforme d'apprentissage afin d'étudier l'engagement
-et les résultats académiques, de repérer tôt les signaux de décrochage et d'interroger les
-données en langage naturel.
+OULA is a student learning analytics application built with Django and the **Open University Learning Analytics Dataset (OULAD)**. It helps a teaching team explore student engagement and academic outcomes, review transparent early-warning indicators, and ask natural-language questions about the data.
 
-Projet de groupe du cours *Développement Web en Python* (Master 2 Data Science), Projet 10 du
-catalogue : un tableau de bord destiné à une équipe pédagogique.
+The project was developed for **Project 10** in the Master 2 Data Science Python Web Development course. Its intended users are teaching staff who need a clear overview of course outcomes and student activity.
 
-## Statut du projet
+## Project status
 
-| Flux de travail | Statut |
+| Workstream | Status |
 |---|---|
-| Configuration et architecture du dépôt | Complet |
-| Inspection OULAD et audit des valeurs manquantes | Complet (suivis d'audit documentés) |
-| Préparation des interactions et réconciliation des comptes | Complet |
-| Modèles Django, migrations, importation contrôlée | Complet, validé localement |
-| API REST de consultation et d'analyse | Complet |
-| Analyse de l'engagement et du taux de réussite par cours | Complet, validé (associations non causales) |
-| Indicateurs de risque de décrochage | Complet : score à jour de coupure, avec vérification a posteriori |
-| Tableau de bord interactif | Complet |
-| Agent conversationnel fondé sur les données | Complet |
-| Tests automatisés | Tous les tests passent |
+| Repository setup and architecture | Completed |
+| OULAD inspection and data-quality audit | Completed for the audited source archive; some grouped missingness analyses remain open |
+| Interaction preparation and reconciliation | Completed and validated |
+| Django models, migrations, and controlled import | Completed and validated locally |
+| Read-only REST API and course-level analytics | Implemented |
+| Early-withdrawal risk indicators and retrospective check | Implemented; validation is limited to one course presentation and cutoff |
+| Interactive dashboard | Implemented |
+| Data-grounded conversational agent | Implemented; requires a configured external Gemini API |
+| Automated tests | Implemented; run locally with the command below |
 
-## Ce que fait l'application
+## What the application does
 
-- **Importe** les données OULAD dans une base relationnelle (cours, étudiants, inscriptions,
-  évaluations, interactions avec la plateforme).
-- **Expose une API REST** (Django REST Framework) de consultation et d'analyse.
-- **Calcule un score de risque de décrochage** transparent, avec les motifs en clair, et en
-  vérifie la pertinence a posteriori.
-- **Affiche un tableau de bord interactif** : réussite par module, engagement par semaine,
-  corrélation engagement/résultat, étudiants à risque.
-- **Répond en français à des questions** sur les données grâce à un agent LangChain qui
-  interroge l'API.
+- Imports OULAD data into a relational Django database.
+- Exposes course, student, enrollment, assessment, and analytical endpoints through Django REST Framework.
+- Summarizes course success, withdrawal, and recorded VLE activity.
+- Calculates a transparent rule-based risk score at a selected course-day cutoff.
+- Displays course-level charts, engagement trends, risk indicators, and a retrospective comparison with final outcomes.
+- Provides a LangChain assistant that calls the project's API tools and answers questions using the returned data.
+
+The risk score is an **exploratory decision-support indicator**, not a trained predictive model and not a verdict about an individual student.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  ZIP["OULA.zip (données brutes)"] --> PREP["scripts/prepare_interactions.py"]
-  PREP --> CSV["data/processed/interactions.csv"]
-  ZIP --> IMPORT["manage.py import_oulad"]
+  ZIP["OULAD source archive"] --> PREP["Interaction preparation"]
+  PREP --> CSV["Prepared interactions CSV"]
+  ZIP --> IMPORT["Django import command"]
   CSV --> IMPORT
-  IMPORT --> DB[("Base de données SQLite")]
-  DB --> API["API Django REST Framework"]
-  API --> DASH["Tableau de bord /dashboard/"]
-  API --> TOOLS["Outils de l'agent"]
-  TOOLS --> AGENT["Agent LangChain + Gemini"]
-  AGENT --> CHAT["Chat du tableau de bord"]
+  IMPORT --> DB[("SQLite database")]
+  DB --> API["Django REST Framework API"]
+  API --> DASH["Dashboard /dashboard/"]
+  API --> TOOLS["Agent tools"]
+  TOOLS --> AGENT["LangChain + Gemini"]
+  AGENT --> CHAT["Dashboard chat"]
 ```
 
-Le tableau de bord et l'agent lisent **les mêmes endpoints** : leurs chiffres coïncident dès que
-le périmètre (module, session) et la définition de l'indicateur sont identiques.
+The dashboard and the agent consume the same project API. Their results should therefore agree when they use the same module, presentation, cutoff, and metric definition.
 
-| Composant | Choix |
+| Component | Technology |
 |---|---|
-| Backend | Django 5.2 + Django REST Framework |
-| Base de données | SQLite (développement) |
-| Tableau de bord | Templates Django + Chart.js |
-| Agent | LangChain (`create_agent`) + modèle Gemini, avec modèles de secours |
-| Tests | Framework de tests de Django |
+| Backend | Django 5.2 |
+| REST API | Django REST Framework |
+| Development database | SQLite |
+| Dashboard | Django templates and Chart.js |
+| Conversational agent | LangChain and Google Gemini |
+| Data preparation and analysis | Python, pandas, NumPy |
+| Tests | Django test framework and DRF API test client |
 
-## Jeu de données
+## Dataset and data model
 
-OULAD contient sept fichiers CSV liés : `studentInfo.csv`, `studentRegistration.csv`,
-`courses.csv`, `assessments.csv`, `studentAssessment.csv`, `vle.csv` et `studentVle.csv`.
+OULAD contains seven related CSV files: `studentInfo.csv`, `studentRegistration.csv`, `courses.csv`, `assessments.csv`, `studentAssessment.csv`, `vle.csv`, and `studentVle.csv`.
 
-- [Page officielle du jeu de données](https://analyse.kmi.open.ac.uk/open_dataset)
-- [Miroir Kaggle](https://www.kaggle.com/datasets/rocki37/open-university-learning-analytics-dataset)
+- [Official OULAD dataset page](https://analyse.kmi.open.ac.uk/open_dataset)
+- [Kaggle mirror](https://www.kaggle.com/datasets/rocki37/open-university-learning-analytics-dataset)
 
-Un cours de ce projet représente une **présentation de module**, identifiée par
-`code_module` + `code_presentation`. Un étudiant peut être inscrit à plusieurs présentations.
-Le fichier `studentVle.csv` contient plus de 10 millions de lignes : il est donc traité de
-manière reproductible plutôt qu'en objets ORM individuels.
+A course in this project is a **module presentation**, uniquely identified by `code_module` and `code_presentation`. A student can have multiple enrollments. OULAD dates are relative day offsets, not calendar dates; negative offsets can be valid.
 
-L'archive originale est conservée localement sous `data/raw/` et les interactions préparées
-sous `data/processed/`. Aucun de ces dossiers n'est versionné.
+The Django application uses five main models:
 
-### Modèles Django
-
-| Modèle | Rôle |
+| Model | Purpose |
 |---|---|
-| `Student` | Personne anonymisée identifiée par `id_student`, avec ses caractéristiques générales |
-| `Course` | Présentation d'un module, identifiée de façon unique par `code_module` + `code_presentation` |
-| `Enrollment` | Inscription d'un étudiant à une présentation : caractéristiques propres à l'inscription, décalages d'inscription et résultat final |
-| `Assessment` | Métadonnées d'une évaluation et soumission/résultat d'un étudiant, liées à une inscription |
-| `Interaction` | Clics agrégés au grain inscription + ressource de la plateforme + jour relatif |
+| `Student` | An anonymized student identity and person-level attributes |
+| `Course` | One module presentation |
+| `Enrollment` | One student's participation in one module presentation |
+| `Assessment` | An assessment record associated with an enrollment |
+| `Interaction` | Aggregated VLE clicks for one enrollment, resource, and relative day |
 
-`Enrollment` est nécessaire parce que les évaluations et les interactions appartiennent à une
-présentation de cours particulière pour un étudiant donné, et non à l'identité de l'étudiant
-seule. Voir [`docs/architecture.md`](docs/architecture.md),
-[`docs/data-dictionary.md`](docs/data-dictionary.md) et [`docs/data-quality.md`](docs/data-quality.md).
+The `Enrollment` model is essential: outcomes and attributes can vary across course presentations for the same student, and assessments and interactions must be associated with the correct enrollment.
 
-### Préparation et validation des données
+See [the architecture](docs/architecture.md) and [the data dictionary](docs/data-dictionary.md) for details.
 
-Le script de préparation laisse l'archive brute inchangée, supprime les lignes sources
-strictement identiques et agrège les observations répétées étudiant-ressource-jour en
-additionnant les clics.
+## Data preparation and validation
 
-Sur l'archive auditée : 10 655 280 lignes sources, dont 787 170 doublons exacts supprimés,
-soit 9 868 110 lignes avant agrégation en **8 459 320 enregistrements d'interaction**. Le total
-de clics importé en base (38 343 063) a été rapproché du total du fichier préparé.
+The raw archive is preserved unchanged. The interaction preparation script:
 
-La validation locale de l'import a enregistré : 22 cours, 28 785 étudiants, 32 593
-inscriptions, 173 912 évaluations rendues et 8 459 320 interactions. Ces résultats valent pour
-l'archive locale auditée : relancer la validation si les données sources ou les transformations
-changent.
+1. Removes only exact duplicate source rows.
+2. Groups the remaining records by student, module presentation, VLE resource, and relative day.
+3. Sums `sum_click` within each group to produce `total_clicks`.
 
-Décisions de qualité des données (détail dans
-[`docs/data-quality-and-missing-values.md`](docs/data-quality-and-missing-values.md)) : un score
-manquant n'est pas un zéro ; l'absence de date de désinscription n'est pas une preuve fiable
-d'absence de retrait ; les dates OULAD sont des décalages relatifs en jours, pas des dates de
-calendrier.
+For the audited archive:
 
-## Installation
+| Stage | Rows |
+|---|---:|
+| Raw `studentVle.csv` rows | 10,655,280 |
+| After exact duplicate removal | 9,868,110 |
+| After aggregation at the agreed interaction grain | 8,459,320 |
 
-Les commandes sont données pour Windows (PowerShell). Sous macOS ou Linux, activer
-l'environnement avec `source .venv/bin/activate`.
+The database import validation recorded 22 course presentations, 28,785 students, 32,593 enrollments, 173,912 assessment records, and 8,459,320 interaction records. The imported click total (38,343,063) reconciled with the prepared interaction data.
 
-1. **Cloner le dépôt** et créer l'environnement virtuel :
-   ```
+These figures describe the specific archive audited by the team. Rerun the preparation and validation steps if the source data or transformation changes.
+
+Our missing-data policy is **preserve → investigate → document → handle at point of use**. A missing assessment score is not zero; a missing unregistration date does not by itself establish whether or when a student withdrew. See [Data Quality Decisions](docs/data-quality.md) and [Data Quality and Missing-Value Policy](docs/data-quality-and-missing-values.md).
+
+## Analytics and metric definitions
+
+The project exposes two success-rate definitions for different questions. They are not directly comparable:
+
+| Endpoint | Definition |
+|---|---|
+| `/api/analytics/success-rate-by-course/` | Pass + Distinction divided by completed outcomes (Pass + Distinction + Fail). Withdrawals are reported separately and excluded from the denominator. |
+| `/api/stats/reussite-par-cours/` | Pass + Distinction divided by all enrollments, including Withdrawn outcomes. The withdrawal rate is also calculated over all enrollments. |
+
+Engagement indicators describe recorded platform activity. They are not direct measurements of attention, learning, or effort. Differences and correlations between activity and outcomes do not establish causation. Students who withdraw may have had less time to generate clicks.
+
+## Early-withdrawal risk indicators
+
+The risk endpoint calculates an additive score at a selected day cutoff (day 60 by default). It uses recorded activity and assessment information available up to that cutoff; the final outcome is attached for retrospective comparison, not used as a score input.
+
+The implemented signals include no recorded clicks, activity below a course-level lower-quartile threshold, no recent activity in the preceding 14 days, no recorded non-missing assessment score by the cutoff, and low or moderate average scores. Risk levels are high (60 or more), medium (30–59), and low (below 30).
+
+**Scoring note:** although the score is additive, the current rules use mutually exclusive branches for the click and assessment signals. Their maximum combined score is 100 points. It is a heuristic point score, not a probability or percentage.
+
+The retrospective endpoint compares risk levels with final outcomes. The documented example covers module AAA, presentation 2013J, at day 60: 361 enrollments were analyzed. The proportion who ultimately failed or withdrew was 85.7% in the high-risk group (7 students), 64.3% in the medium-risk group (28 students), and 18.1% in the low-risk group (326 students), compared with 23.0% overall.
+
+This is a limited descriptive check, not a general performance estimate. It covers one course presentation and one cutoff; the high- and medium-risk groups are small. The implementation also needs a stricter eligibility check for students whose registration date is missing or later than the selected cutoff. See [API, Dashboard, and Agent](docs/api-dashboard-agent.md) for the implementation details and limitations.
+
+## Future extension: a machine-learning perspective
+
+Machine learning is a possible future extension, not a component currently implemented in this project. The existing rule-based risk indicator should remain the baseline against which any predictive model is evaluated.
+
+A responsible extension could investigate whether student withdrawal can be predicted using only information available at a defined course-day cutoff. Before modelling, the team should:
+
+1. Define the prediction target and prediction horizon (for example, withdrawal after day 60).
+2. Build an eligible cohort using registration and unregistration dates, with explicit handling of missing dates.
+3. Construct features only from interactions and assessment information available by the cutoff; exclude final outcomes and all future information.
+4. Split data in a way that prevents the same student from leaking across training and test sets, and consider a time- or presentation-based holdout to assess temporal generalization.
+5. Establish a simple baseline before trying more complex models.
+6. Address class imbalance and evaluate precision, recall, F1, PR-AUC, and calibration where predicted probabilities are used. Accuracy alone is insufficient.
+7. Compare the model with the current heuristic and document subgroup performance, limitations, and the risks of using predictions in student-support decisions.
+
+Missing-value handling, categorical encoding, scaling, feature selection, and any resampling must be fitted within the training pipeline using training data only. The model should support human review rather than automate decisions about students.
+
+No predictive model, trained weights, or model-performance claim is included in the current project.
+
+## Dashboard
+
+Open `/dashboard/` after starting the Django development server. The dashboard includes:
+
+- Overall enrollment, success-rate, and withdrawal-rate cards.
+- Success and withdrawal rates by module.
+- Weekly VLE clicks for a selected module.
+- Mean and median clicks by final outcome, with a warning about exposure-time differences.
+- A risk table filtered by module, presentation, cutoff day, and risk level.
+- A retrospective risk-validation summary.
+- A chat interface for the conversational assistant.
+
+Chart.js is loaded by the dashboard from a CDN, so the browser needs internet access to retrieve that library.
+
+## Conversational agent
+
+The LangChain agent has three tools that call the project's API:
+
+1. Success and withdrawal statistics by module.
+2. Weekly engagement for a selected module.
+3. Students flagged by the rule-based risk indicator.
+
+The agent is instructed to ground answers in tool results, ask for missing course context, explain the reasons returned for risk flags, and avoid presenting a risk score as a verdict. The configured primary Gemini model is tried first, followed by the fallback models in `.env`.
+
+The agent requires a valid Google AI Studio API key and a running Django server. Model identifiers and provider availability can change; use model names currently supported by Google AI Studio.
+
+## Installation and local run
+
+The commands below use Windows PowerShell. On macOS or Linux, activate the virtual environment with `source .venv/bin/activate`.
+
+1. Clone the repository and create a virtual environment:
+
+   ```powershell
    git clone https://github.com/RosAI-27/OULA-DjangoProject.git
    cd OULA-DjangoProject
    python -m venv .venv
-   .venv\Scripts\activate
+   .venv\Scripts\Activate.ps1
    pip install -r requirements.txt
    ```
-2. **Créer le fichier `.env`** à la racine du projet en copiant `.env.example`, puis le
-   compléter (ce fichier ne doit jamais être commité) :
-   ```
-   DJANGO_SECRET_KEY=une_longue_chaine_aleatoire
-   DJANGO_DEBUG=True
-   DJANGO_ALLOWED_HOSTS=127.0.0.1,localhost
 
-   GOOGLE_API_KEY=votre_cle_google_ai_studio
-   LLM_MODEL=google_genai:gemini-3.8-flash
-   LLM_MODELES_SECOURS=google_genai:gemini-3.5-flash-lite,google_genai:gemini-flash-latest
+2. Copy `.env.example` to `.env` at the repository root. Set a local Django secret and allowed hosts. To use the conversational agent, also provide a Google AI Studio API key and model identifiers supported by your account. **Never commit `.env` or real credentials.**
+
+   Generate a local Django secret with:
+
+   ```powershell
+   python -c "import secrets; print(secrets.token_urlsafe(50))"
    ```
-   Une clé secrète se génère avec :
-   `python -c "import secrets; print(secrets.token_urlsafe(50))"`.
-   La clé Google s'obtient gratuitement sur [Google AI Studio](https://aistudio.google.com).
-   Les noms de modèles évoluent : en cas d'erreur `404`, vérifier la liste actuelle.
-3. **Placer les données** (le dossier `data/` n'est pas versionné) : l'archive OULAD dans
-   `data/raw/OULA.zip`. Elle doit contenir le dossier `anonymiseddata/` avec les fichiers CSV
-   d'origine.
-4. **Générer le fichier d'interactions** (depuis la racine du projet) :
-   ```
+
+3. Place the OULAD archive at `data/raw/OULA.zip`. It must contain the original `anonymiseddata/` directory. The `data/` directory is not versioned.
+
+4. From the repository root, prepare the interactions:
+
+   ```powershell
    python scripts/prepare_interactions.py --input data/raw/OULA.zip --output data/processed/interactions.csv
    ```
-5. **Créer la base et importer les données** (depuis le dossier `backend`) :
-   ```
+
+5. From the `backend` directory, apply migrations and import the data:
+
+   ```powershell
    cd backend
    python manage.py migrate
    python manage.py import_oulad
    ```
-   L'import s'arrête si la base contient déjà des données. L'option `--replace` supprime les
-   données existantes avant de recommencer (à utiliser avec précaution). L'import des
-   interactions est long : compter plusieurs minutes.
-6. **Lancer le serveur**, qui doit rester actif pour l'agent :
-   ```
+
+   The import command stops if the database already contains data. The `--replace` option deletes existing imported data before re-importing; use it carefully. Importing the interactions can take several minutes.
+
+6. Start the server:
+
+   ```powershell
    python manage.py runserver
    ```
-7. Ouvrir <http://127.0.0.1:8000/dashboard/>.
 
-## API
+7. Open [http://127.0.0.1:8000/dashboard/](http://127.0.0.1:8000/dashboard/).
 
-Toutes les adresses sont préfixées par `/api/`.
+Keep the Django server running while using the agent, because its tools call the local API.
 
-### Consultation des données et analyses par cours
+## API overview
 
-| Méthode | Adresse | Rôle |
+All endpoints are under the `/api/` prefix. The original French URL paths and response field names are retained for compatibility with the existing dashboard and agent.
+
+| Method | Endpoint | Purpose |
 |---|---|---|
-| GET | `/courses/` | Liste des cours |
-| GET | `/students/` | Liste des étudiants (anonymisés) |
-| GET | `/enrollments/` | Inscriptions et résultats finaux |
-| GET | `/assessments/` | Évaluations et notes |
-| GET | `/analytics/success-rate-by-course/` | Taux de réussite par cours |
-| GET | `/analytics/engagement-by-course/` | Engagement par cours |
+| GET | `/api/courses/` | List course presentations |
+| GET | `/api/students/` | List anonymized student records |
+| GET | `/api/enrollments/` | List enrollments and final outcomes |
+| GET | `/api/assessments/` | List assessment records |
+| GET | `/api/analytics/engagement-by-course/` | Aggregate clicks, active enrollments, and interaction records by course presentation |
+| GET | `/api/analytics/success-rate-by-course/` | Success rate among completed outcomes |
+| GET | `/api/stats/reussite-par-cours/` | Dashboard success and withdrawal rates |
+| GET | `/api/stats/engagement-par-semaine/` | Weekly clicks and active-enrollment counts |
+| GET | `/api/stats/engagement-par-resultat/` | Mean and median clicks by final outcome |
+| GET | `/api/etudiants-a-risque/` | Risk scores and explanations for a selected course presentation |
+| GET | `/api/etudiants-a-risque/validation/` | Retrospective comparison of risk levels with final outcomes |
+| POST | `/api/agent/ask/` | Ask the conversational agent; JSON body: `{"question": "..." }` |
 
-Les filtres disponibles sont des paramètres d'adresse (par exemple `?final_result=Fail`) ; ils
-sont décrits dans `backend/analytics/views.py`.
+The course, student, enrollment, and assessment list endpoints use Django REST Framework's default pagination (20 records per page in the current settings). The current code applies filters as implemented in the corresponding views; consult `backend/analytics/views.py` for the supported query parameters.
 
-### Statistiques du tableau de bord, risque et agent
+**Access-control limitation:** the current Django REST Framework settings do not configure authenticated default permissions, and the relevant views do not add them. Do not assume that student-level endpoints are protected. The API and dashboard should be treated as development-only until authentication and authorization are implemented and tested.
 
-| Méthode | Adresse | Paramètres | Rôle |
-|---|---|---|---|
-| GET | `/stats/reussite-par-cours/` | `code_presentation` (optionnel) | Inscrits, taux de réussite et d'abandon par module |
-| GET | `/stats/engagement-par-semaine/` | `code_module` (obligatoire), `code_presentation` | Clics par semaine de cours et par étudiant actif |
-| GET | `/stats/engagement-par-resultat/` | `code_module` (obligatoire), `code_presentation` | Clics moyens et médians selon le résultat final |
-| GET | `/etudiants-a-risque/` | `code_module` et `code_presentation` (obligatoires), `jour` (défaut 60), `niveau`, `limite` | Étudiants à risque avec score, niveau et motifs |
-| GET | `/etudiants-a-risque/validation/` | `code_module` et `code_presentation` (obligatoires), `jour` | Compare chaque niveau de risque au résultat final réel |
-| POST | `/agent/ask/` | corps JSON `{"question": "..."}` | Réponse de l'agent en français |
+## Development challenges and how we addressed them
 
-Exemples :
+This project required more than connecting Django to a CSV file. The main challenges included:
 
-```
-/api/stats/reussite-par-cours/?code_presentation=2013J
-/api/etudiants-a-risque/?code_module=AAA&code_presentation=2013J&jour=60&niveau=eleve
-```
+- **Handling a very large interaction table.** The raw VLE file contains more than 10 million rows. We kept the source archive unchanged and used a reproducible preparation script instead of creating millions of ORM objects one by one.
+- **Distinguishing duplicates from repeated observations.** Exact duplicate rows were removed, but records sharing the same student-resource-day key were aggregated by summing clicks. This avoided discarding valid click counts.
+- **Choosing the correct data grain.** A course is a module presentation, and student outcomes and attributes can vary across enrollments. The separate Enrollment model preserves those relationships.
+- **Investigating missing values.** Missing scores, registration dates, and unregistration dates do not all mean the same thing. We documented their patterns and avoided treating missing scores as zero or missing dates as proof of withdrawal.
+- **Reconciling imported data.** We checked row counts, unique keys, and click totals between the prepared file and the Django database.
+- **Building analytics on top of a large dataset.** We used aggregate ORM queries and API endpoints instead of exposing millions of raw interaction rows to the dashboard.
+- **Keeping interpretation honest.** We distinguished completed-outcome success rates from all-enrollment success rates, documented exposure-time limitations, and treated the risk score as a rule-based indicator rather than a validated predictive model.
+- **Coordinating development and integration.** We worked across feature branches and pull requests, handled merge conflicts in shared documentation, and synchronized the local repository after integration.
 
-Codes de réponse : `400` pour un paramètre manquant ou invalide, `502` si l'agent ne peut pas
-joindre le modèle de langage.
-
-### Définitions des indicateurs
-
-Deux définitions du taux de réussite coexistent dans le projet. Elles répondent à deux
-questions différentes et **ne sont pas directement comparables** :
-
-| Endpoint | Définition |
-|---|---|
-| `/analytics/success-rate-by-course/` | Réussis (Pass + Distinction) divisés par les résultats **complétés** (Pass + Distinction + Fail). Les retraits sont rapportés séparément. |
-| `/stats/reussite-par-cours/` (tableau de bord et agent) | Réussis (Pass + Distinction) divisés par **toutes** les inscriptions, retraits compris. Le taux d'abandon est la part de `Withdrawn`. |
-
-Une absence d'interaction enregistrée n'est pas automatiquement une preuve de désengagement, et
-la corrélation entre engagement et résultats n'établit pas de causalité.
-
-## Score de risque de décrochage
-
-Le score va de 0 à 100. Il est calculé **à un jour de coupure** (60 par défaut) à partir de ce
-qui s'est passé jusqu'à ce jour, afin d'éviter toute fuite de la cible : le résultat final
-(`final_result`) n'entre pas dans le calcul et sert uniquement à vérifier la pertinence du
-score après coup.
-
-| Signal | Points |
-|---|---|
-| Aucun clic sur la plateforme | 40 |
-| Activité inférieure à celle du premier quart des étudiants du cours | 25 |
-| Aucune activité sur les 14 jours précédant la coupure | 30 |
-| Aucune évaluation rendue | 15 |
-| Moyenne des notes inférieure à 40 | 30 |
-| Moyenne des notes entre 40 et 55 | 15 |
-
-Niveaux : **élevé** à partir de 60, **moyen** de 30 à 59, **faible** en dessous de 30. Les
-étudiants désinscrits au plus tard le jour de coupure sont exclus de l'analyse.
-
-> Le score est un **indicateur d'aide à la décision**, pas un verdict sur l'étudiant. Cet
-> avertissement figure aussi dans l'interface.
-
-### Vérification a posteriori
-
-Module AAA, session 2013J, jour de coupure 60 (361 étudiants analysés) :
-
-| Niveau | Étudiants | Échec ou abandon final |
-|---|---|---|
-| Élevé | 7 | 85,7 % |
-| Moyen | 28 | 64,3 % |
-| Faible | 326 | 18,1 % |
-| Ensemble du cours | 361 | 23,0 % |
-
-La part d'échecs ou d'abandons décroît régulièrement avec le niveau de risque. Limites de cette
-vérification : un seul cours et un seul jour de coupure, effectifs faibles aux niveaux élevé et
-moyen, et exclusion des étudiants déjà désinscrits au jour de coupure.
-
-## Tableau de bord
-
-Page `/dashboard/` :
-
-- cartes de chiffres clés (tous modules) ;
-- graphique de réussite et d'abandon par module ;
-- courbe d'engagement par semaine pour le module choisi ;
-- corrélation engagement / résultat final, avec une mise en garde : les étudiants qui abandonnent
-  ont moins de temps pour cliquer, donc l'écart reflète en partie la durée de présence ;
-- tableau des étudiants à risque, filtrable par jour de coupure et par niveau, avec la
-  vérification a posteriori ;
-- zone de chat avec l'assistant.
-
-## Agent conversationnel
-
-L'agent, construit avec LangChain, dispose de trois outils qui appellent l'API du projet :
-réussite par cours, engagement par semaine et étudiants à risque. Il est instruit de ne répondre
-qu'à partir des données renvoyées par ces outils, d'indiquer le périmètre de ses chiffres et de
-demander une précision quand la question est incomplète.
-
-Si le modèle principal est indisponible (surcharge, quota), l'agent essaie les modèles de
-secours de `LLM_MODELES_SECOURS`. Les outils appellent le serveur local : l'adresse se modifie
-avec la variable `API_BASE_URL` (par défaut `http://127.0.0.1:8000/api`).
-
-Exemples de questions :
-
-- « Quel module a le meilleur taux de réussite en 2013J ? »
-- « Quels étudiants du module AAA en 2013J sont les plus à risque, et pourquoi ? »
+These decisions made the workflow more reproducible and the results easier to inspect, while leaving some limitations explicitly documented rather than hiding them.
 
 ## Tests
 
-Depuis le dossier `backend` :
+From the `backend` directory:
 
-```
+```powershell
 python manage.py test analytics
 ```
 
-Les tests utilisent une base temporaire et de petites données fictives, et n'appellent pas le
-modèle de langage. Ils couvrent l'API et les analyses par cours, les statistiques du tableau de
-bord, le calcul et le classement du score de risque, l'exclusion des étudiants désinscrits, la
-validation du score et la vérification des requêtes de l'agent.
+The tests use small synthetic records and do not call the external language model. They cover the course analytics endpoints, dashboard statistics, risk-score rules and ordering, exclusion of enrollments withdrawn by the cutoff, retrospective validation, and basic agent-request validation. Run the suite locally after installation; this README does not claim a fresh test run in every environment.
 
-## Principes de gestion des données, de vie privée et de modélisation
+## Privacy, responsible use, and known limitations
 
-- Ne jamais commiter de secrets, de fichiers d'environnement locaux ni de données brutes au
-  niveau des étudiants.
-- Garder les fichiers sources bruts inchangés.
-- Ne pas transformer les valeurs manquantes en zéro ou en catégorie inventée sans raison
-  documentée.
-- Prévenir la fuite de cible : les variables n'utilisent que l'information disponible au moment
-  de la prédiction prévue.
-- Établir une base simple et interprétable avant tout modèle complexe.
-- Rapporter les dénominateurs, les limites et des indicateurs adaptés à la tâche.
-- Traiter les indicateurs de risque comme des signaux incertains qui soutiennent une revue
-  humaine, et non comme des décisions automatisées concernant les étudiants.
+- The dataset is anonymized, but student-level records still require careful access control.
+- The current API does not enforce authentication or authorization.
+- The risk indicator is a transparent heuristic, not a trained or externally validated prediction model.
+- The current risk cohort does not yet enforce all registration-date eligibility conditions.
+- The risk score is a heuristic point total, not a calibrated probability.
+- The retrospective check covers one course presentation and one cutoff, with small high- and medium-risk groups.
+- An absence of recorded clicks is not proof that a student is not learning or engaging elsewhere.
+- OULAD comes from one institution; findings may not generalize to other institutions or learning environments.
+- The agent depends on an external model provider and an active local API server.
+- The project is a development/academic prototype, not a production student-monitoring system.
 
-## Organisation du dépôt
+Do not use risk indicators as automated decisions about students. They should support human review, with the relevant context and uncertainty considered.
 
-```
+## Repository structure
+
+```text
 OULA-DjangoProject/
-├── backend/        Projet Django (config/) et application analytics/
+├── backend/        Django project, analytics app, API, dashboard, and agent
 ├── data/
-│   ├── raw/        Fichiers d'origine (exclu de Git)
-│   └── processed/  Sorties générées (exclu de Git)
-├── notebooks/      Exploration et expériences
-├── docs/           Architecture, dictionnaire de données, décisions
-├── reports/        Résultats d'analyses exportés en CSV
-├── scripts/        Scripts reproductibles d'audit, de préparation et d'analyse
-├── tests/          Notes sur les tests
-├── .env.example    Modèle de variables d'environnement
+│   ├── raw/        Original source archive (not tracked by Git)
+│   └── processed/  Generated interaction data (not tracked by Git)
+├── notebooks/      Exploration and experiments
+├── docs/           Architecture, data dictionary, and analysis decisions
+├── reports/        Aggregate CSV analysis outputs
+├── scripts/        Reproducible audit, preparation, and analysis scripts
+├── tests/          Test-related project notes
+├── .env.example    Environment-variable template
 ├── .gitignore
 ├── requirements.txt
 └── README.md
 ```
 
-Documentation détaillée : [`docs/architecture.md`](docs/architecture.md),
-[`docs/data-dictionary.md`](docs/data-dictionary.md),
-[`docs/data-quality.md`](docs/data-quality.md),
-[`docs/engagement-analysis.md`](docs/engagement-analysis.md) et
-[`docs/api-dashboard-agent.md`](docs/api-dashboard-agent.md).
+Detailed documentation:
+- [System architecture](docs/architecture.md)
+- [Data dictionary](docs/data-dictionary.md)
+- [Data quality decisions](docs/data-quality.md)
+- [Data quality and missing-value policy](docs/data-quality-and-missing-values.md)
+- [Engagement analysis](docs/engagement-analysis.md)
+- [API, dashboard, and conversational agent](docs/api-dashboard-agent.md)
 
-## Collaboration
+## Team responsibilities
 
-Les changements importants passent par des branches de fonctionnalité et des *pull requests*,
-relues par l'autre membre du groupe. `main` reste stable. Chaque membre commite sous son propre
-compte GitHub : l'historique des commits fait foi.
-
-## Dépannage
-
-| Symptôme | Cause probable |
+| Team member | Main responsibilities |
 |---|---|
-| `KeyError: 'DJANGO_SECRET_KEY'` au démarrage | Variable absente du fichier `.env` à la racine |
-| `Bad Request (400)` dans le navigateur | `DJANGO_ALLOWED_HOSTS` ou `DJANGO_DEBUG` non renseignés |
-| Migration non appliquée | Lancer `python manage.py migrate` |
-| L'agent répond « Impossible de joindre l'API » | Le serveur Django n'est pas lancé |
-| Erreur `503` ou `429` côté agent | Modèle Google surchargé ou quota gratuit atteint : réessayer ou changer de modèle |
-| Erreur `404` sur un modèle | Nom de modèle périmé : consulter la liste sur Google AI Studio |
+| BAPFUBUSA SIAPZE Rose | Django models, data import and quality, consultation API, course-level engagement and success analysis |
+| EBANGA MBALLA Télesphore | Aggregation endpoints, risk indicator and retrospective validation, dashboard, conversational agent, and tests |
 
-## Limites connues
-
-- Le score de risque est une règle simple et transparente, pas un modèle prédictif entraîné. Il
-  traite l'absence de clics comme un signal de risque, alors qu'une absence d'interaction n'est
-  pas en soi une preuve de désengagement.
-- Sa vérification porte sur un nombre limité de cours et de jours de coupure.
-- Les endpoints de consultation n'exigent pas d'authentification.
-- L'agent dépend d'un service externe dont la disponibilité et la vitesse ne sont pas garanties.
-- OULAD est anonymisé et issu d'un seul établissement : les résultats ne se généralisent pas
-  nécessairement à d'autres contextes.
-
-## Répartition des rôles
-
-| Membre | Responsabilités |
-|---|---|
-| BAPFUBUSA SIAPZE Rose | Modèles Django, import et qualité des données, API de consultation, analyses d'engagement et de réussite par cours |
-| EBANGA MBALLA Télesphore | Endpoints d'agrégation, score de risque et sa validation, tableau de bord, agent conversationnel, tests |
+The repository history records individual contributions through each member's GitHub account.

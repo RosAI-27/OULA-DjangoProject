@@ -1,6 +1,4 @@
-"""Agent conversationnel : un modèle de langage qui utilise les outils de tools.py.
-
-Si un modèle est indisponible (surcharge, quota), l'agent essaie le suivant.
+"""Conversational analytics agent using the tools defined in tools.py. If a model is unavailable (for example, due to capacity or quota), the agent tries the next configured model.
 """
 import os
 
@@ -16,41 +14,36 @@ from .tools import (
 
 load_dotenv()
 
-CONSIGNES = """Tu es un assistant d'analyse pour une équipe pédagogique. Tu réponds en français
-à des questions sur la réussite et l'engagement des étudiants du jeu de données OULAD
-(Open University).
+CONSIGNES = """You are an analytics assistant for a teaching team. Answer questions in English about student success and engagement in the Open University Learning Analytics Dataset (OULAD).
 
-Règles :
-- Appuie-toi UNIQUEMENT sur les données renvoyées par tes outils. N'invente jamais de chiffre.
-- Si la question manque d'information (module, session), demande-la au lieu de deviner.
-  Les modules sont AAA, BBB, CCC, DDD, EEE, FFF, GGG ; les sessions sont 2013B, 2013J, 2014B, 2014J.
-- Quand tu cites des étudiants à risque, explique les motifs fournis par l'outil.
-- Le score de risque est un indicateur d'aide à la décision, pas un verdict : rappelle-le
-  quand tu parles d'un étudiant en particulier.
-- Si les outils renvoient une erreur ou aucune donnée, dis-le clairement.
-- Appelle le moins d'outils possible : un seul suffit dans la plupart des cas.
-  Pour les étudiants à risque, demande au plus 10 étudiants.
-- Réponds de façon concise et structurée."""
+Rules:
+- Use ONLY the data returned by your tools. Never invent figures.
+- If the question is missing context (module or presentation), ask for it instead of guessing. Valid modules include AAA, BBB, CCC, DDD, EEE, FFF, and GGG; presentations include 2013B, 2013J, 2014B, and 2014J.
+- When discussing students flagged by the risk indicator, explain the reasons returned by the tool.
+- The risk score is a decision-support indicator, not a verdict. Remind users of this whenever discussing an individual student.
+- If a tool returns an error or no data, state that clearly.
+- Call as few tools as possible; one is usually enough. For risk-indicator queries, request no more than 10 students.
+- Answer concisely and use a clear structure."""
 
 OUTILS = [get_reussite_par_cours, get_engagement_par_semaine, get_etudiants_a_risque]
 
 
 def _liste_modeles():
-    """Modèle principal, puis modèles de secours (séparés par des virgules)."""
+    """Returns the primary model followed by fallback models (comma-separated)."""
     principal = os.getenv("LLM_MODEL", "").strip()
     secours = os.getenv("LLM_MODELES_SECOURS", "")
     modeles = [principal] + [m.strip() for m in secours.split(",")]
     modeles = [m for m in modeles if m]
     if not modeles:
         raise RuntimeError(
-            "La variable LLM_MODEL est absente du fichier .env "
-            "(exemple : google_genai:NOM_DU_MODELE)."
+            "The LLM_MODEL variable is missing from the .env file "
+            "(for example: google_genai:YOUR_SUPPORTED_MODEL_ID)."
         )
     return modeles
 
 
 def _extraire_texte(contenu):
-    """Selon le fournisseur, la réponse est du texte ou une liste de blocs."""
+    """Depending on the provider, the response may be plain text or a list of content blocks."""
     if isinstance(contenu, str):
         return contenu
     morceaux = []
@@ -76,7 +69,7 @@ def _agent_pour(modele):
 
 
 def poser_question(question: str) -> str:
-    """Une question en français, une réponse en texte. Essaie chaque modèle à tour de rôle."""
+    """Accept an English question and return a text answer. Try configured models in order."""
     derniere_erreur = None
     for modele in _liste_modeles():
         try:
@@ -85,6 +78,6 @@ def poser_question(question: str) -> str:
             )
             return _extraire_texte(resultat["messages"][-1].content)
         except Exception as e:
-            print(f"Modèle {modele} indisponible : {e!r}")
+            print(f"Model {modele} is unavailable: {e!r}")
             derniere_erreur = e
     raise derniere_erreur

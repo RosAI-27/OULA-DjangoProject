@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tableau de bord OULAD</title>
+  <title>OULAD Analytics Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; margin: 0; background: #f4f6f9; color: #222; }
@@ -42,16 +42,16 @@
   </style>
 </head>
 <body>
-  <header><h1>Réussite et engagement étudiant (OULAD)</h1></header>
+  <header><h1>Student Success and Engagement Analytics (OULAD)</h1></header>
 
   <main>
     <div class="filtres">
-      <label>Module :
+      <label>Module:
         <select id="filtreModule"></select>
       </label>
-      <label>Session :
+      <label>Presentation:
         <select id="filtreSession">
-          <option value="">Toutes</option>
+          <option value="">All presentations</option>
           <option value="2013B">2013B</option>
           <option value="2013J">2013J</option>
           <option value="2014B">2014B</option>
@@ -61,52 +61,49 @@
     </div>
 
     <div class="kpis">
-      <div class="kpi"><div class="valeur" id="kpiInscrits">-</div><div class="label">Inscriptions (tous modules)</div></div>
-      <div class="kpi"><div class="valeur" id="kpiReussite">-</div><div class="label">Taux de réussite (tous modules)</div></div>
-      <div class="kpi"><div class="valeur" id="kpiAbandon">-</div><div class="label">Taux d'abandon (tous modules)</div></div>
+      <div class="kpi"><div class="valeur" id="kpiInscrits">-</div><div class="label">Enrollments (all modules)</div></div>
+      <div class="kpi"><div class="valeur" id="kpiReussite">-</div><div class="label">Success rate (all modules)</div></div>
+      <div class="kpi"><div class="valeur" id="kpiAbandon">-</div><div class="label">Withdrawal rate (all modules)</div></div>
     </div>
 
     <div class="carte">
-      <h2>Réussite et abandon par module</h2>
+      <h2>Success and withdrawal rates by module</h2>
       <canvas id="graphReussite" height="110"></canvas>
     </div>
 
     <div class="carte">
-      <h2>Clics par semaine (module sélectionné)</h2>
+      <h2>Weekly clicks (selected module)</h2>
       <p class="info" id="infoEngagement"></p>
       <canvas id="graphEngagement" height="110"></canvas>
     </div>
         <div class="carte">
-      <h2>Engagement et résultat final (module sélectionné)</h2>
+      <h2>Engagement and final outcome (selected module)</h2>
       <p class="info">
-        Nombre moyen et médian de clics sur la plateforme selon le résultat final de l'étudiant.
-        Attention : un étudiant qui abandonne en cours de route a moins de temps pour cliquer,
-        donc cet écart reflète en partie la durée de présence, pas seulement la motivation.
-        Une corrélation n'est pas une causalité.
+        Mean and median platform clicks by student final outcome.
+        Note: students who withdraw have less time to generate clicks. This difference partly reflects time enrolled, not only motivation. This descriptive comparison does not establish a causal relationship.
       </p>
-      <canvas id="graphCorrelation" height="110"></canvas>
+      <canvas id="graphEngagementOutcome" height="110"></canvas>
     </div>
         <div class="carte">
-      <h2>Étudiants à risque de décrochage</h2>
+      <h2>Students flagged by the risk indicator</h2>
       <div class="avertissement">
-        Le score de risque est un <strong>indicateur d'aide à la décision</strong>, pas un verdict
-        sur l'étudiant. Il repose uniquement sur l'activité et les notes observées jusqu'au jour de coupure.
+        The risk score is a <strong>decision-support indicator</strong>, not a verdict about a student. It uses activity and assessment scores recorded up to the selected cutoff day.
       </div>
       <div class="filtres">
-        <label>Jour de coupure :
+        <label>Cutoff day:
           <select id="filtreJour">
-            <option value="30">Jour 30</option>
-            <option value="60" selected>Jour 60</option>
-            <option value="90">Jour 90</option>
-            <option value="120">Jour 120</option>
+            <option value="30">Day 30</option>
+            <option value="60" selected>Day 60</option>
+            <option value="90">Day 90</option>
+            <option value="120">Day 120</option>
           </select>
         </label>
-        <label>Niveau :
+        <label>Risk level:
           <select id="filtreNiveau">
-            <option value="">Tous</option>
-            <option value="eleve">Élevé</option>
-            <option value="moyen">Moyen</option>
-            <option value="faible">Faible</option>
+            <option value="">All</option>
+            <option value="eleve">High</option>
+            <option value="moyen">Medium</option>
+            <option value="faible">Low</option>
           </select>
         </label>
       </div>
@@ -117,13 +114,13 @@
         <table>
           <thead>
             <tr>
-              <th>Étudiant</th>
+              <th>Student</th>
               <th>Score</th>
-              <th>Niveau</th>
-              <th>Clics</th>
-              <th>Moy. notes</th>
-              <th>Motifs</th>
-              <th>Résultat final (vérification)</th>
+              <th>Risk level</th>
+              <th>Clicks</th>
+              <th>Mean score</th>
+              <th>Reasons</th>
+              <th>Final outcome (retrospective check)</th>
             </tr>
           </thead>
           <tbody id="corpsRisque"></tbody>
@@ -131,17 +128,17 @@
       </div>
     </div>
         <div class="carte">
-      <h2>Assistant d'analyse</h2>
-      <p class="info">Posez une question en français sur les données. L'assistant interroge l'API du projet et ne s'appuie que sur ses résultats.</p>
+      <h2>Analytics assistant</h2>
+      <p class="info">Ask a question in English about the data. The assistant queries the project API and grounds its answers in the returned results.</p>
       <div class="suggestions">
-        <button type="button" class="suggestion">Quel module a le meilleur taux de réussite en 2013J ?</button>
-        <button type="button" class="suggestion">Quels étudiants du module AAA en 2013J sont les plus à risque, et pourquoi ?</button>
-        <button type="button" class="suggestion">Comment évolue l'engagement du module BBB en 2014J ?</button>
+        <button type="button" class="suggestion">Which module has the highest success rate in 2013J?</button>
+        <button type="button" class="suggestion">Which students in module AAA, presentation 2013J, have the highest risk scores, and why?</button>
+        <button type="button" class="suggestion">How does engagement change over time in module BBB, presentation 2014J?</button>
       </div>
       <div class="chat-messages" id="chatMessages"></div>
       <div class="chat-saisie">
-        <input type="text" id="chatQuestion" placeholder="Votre question..." maxlength="1000">
-        <button type="button" id="chatEnvoyer">Envoyer</button>
+        <input type="text" id="chatQuestion" placeholder="Your question..." maxlength="1000">
+        <button type="button" id="chatSend">Send</button>
       </div>
     </div>
   </main>
@@ -162,7 +159,7 @@
       const reponse = await fetch(url);
       const data = await reponse.json();
 
-      // Remplir la liste des modules une seule fois
+      // Populate the module list once
       if (!modulesCharges && data.length > 0) {
         data.forEach(function (d) {
           const opt = document.createElement("option");
@@ -173,26 +170,26 @@
         modulesCharges = true;
       }
 
-      // Cartes de chiffres clés (moyennes pondérées par le nombre d'inscrits)
+      // Key metric cards (weighted by enrollment count)
       let total = 0, somReussite = 0, somAbandon = 0;
       data.forEach(function (d) {
         total += d.total;
         somReussite += d.total * d.taux_reussite;
         somAbandon += d.total * d.taux_abandon;
       });
-      document.getElementById("kpiInscrits").textContent = total.toLocaleString("fr-FR");
+      document.getElementById("kpiInscrits").textContent = total.toLocaleString("en-US");
       document.getElementById("kpiReussite").textContent = total ? (somReussite / total).toFixed(1) + " %" : "-";
       document.getElementById("kpiAbandon").textContent = total ? (somAbandon / total).toFixed(1) + " %" : "-";
 
-      // Graphique en barres
+      // Bar chart
       if (graphReussite) graphReussite.destroy();
       graphReussite = new Chart(document.getElementById("graphReussite"), {
         type: "bar",
         data: {
           labels: data.map(function (d) { return d.code_module; }),
           datasets: [
-            { label: "Taux de réussite (%)", data: data.map(function (d) { return d.taux_reussite; }) },
-            { label: "Taux d'abandon (%)", data: data.map(function (d) { return d.taux_abandon; }) }
+            { label: "Success rate (%)", data: data.map(function (d) { return d.taux_reussite; }) },
+            { label: "Withdrawal rate (%)", data: data.map(function (d) { return d.taux_abandon; }) }
           ]
         },
         options: { scales: { y: { beginAtZero: true, max: 100 } } }
@@ -207,7 +204,7 @@
       let url = "/api/stats/engagement-par-semaine/?code_module=" + module;
       if (session) url += "&code_presentation=" + session;
 
-      document.getElementById("infoEngagement").textContent = "Chargement en cours...";
+      document.getElementById("infoEngagement").textContent = "Loading...";
       const reponse = await fetch(url);
       const data = await reponse.json();
       document.getElementById("infoEngagement").textContent = "";
@@ -216,16 +213,16 @@
       graphEngagement = new Chart(document.getElementById("graphEngagement"), {
         type: "line",
         data: {
-          labels: data.map(function (d) { return "S" + d.semaine; }),
+          labels: data.map(function (d) { return "W" + d.semaine; }),
           datasets: [
-            { label: "Clics par étudiant actif", data: data.map(function (d) { return d.clics_par_etudiant; }) }
+            { label: "Clicks per active enrollment", data: data.map(function (d) { return d.clics_par_etudiant; }) }
           ]
         },
         options: { scales: { y: { beginAtZero: true } } }
       });
     }
 
-        const libellesNiveau = { eleve: "Élevé", moyen: "Moyen", faible: "Faible" };
+        const libellesNiveau = { eleve: "High", moyen: "Medium", faible: "Low" };
         async function chargerValidation(module, session, jour) {
       const zone = document.getElementById("validationRisque");
       zone.textContent = "";
@@ -236,10 +233,10 @@
         if (data.erreur) return;
         const morceaux = data.niveaux.map(function (n) {
           return n.etudiants === 0 ? null :
-            libellesNiveau[n.niveau] + " : " + n.pct_echec_ou_abandon + " % échouent ou abandonnent (" + n.etudiants + " étudiants)";
+            libellesNiveau[n.niveau] + ": " + n.pct_echec_ou_abandon + " % ultimately failed or withdrew (" + n.etudiants + " enrollments)";
         }).filter(Boolean);
-        zone.textContent = "Vérification a posteriori : " + morceaux.join(" — ") +
-          ". Moyenne du cours : " + data.ensemble.pct_echec_ou_abandon + " %.";
+        zone.textContent = "Retrospective check: " + morceaux.join(" — ") +
+          ". Overall rate: " + data.ensemble.pct_echec_ou_abandon + " %.";
       } catch (e) {
         zone.textContent = "";
       }
@@ -258,11 +255,11 @@
       resume.innerHTML = "";
 
       if (!module || !session) {
-        info.textContent = "Choisissez un module et une session précise (pas « Toutes ») pour afficher les étudiants à risque.";
+        info.textContent = "Select a module and a specific presentation (not “All presentations”) to display risk indicators.";
         return;
       }
 
-      info.textContent = "Chargement en cours...";
+      info.textContent = "Loading...";
       chargerValidation(module, session, jour);
       let url = "/api/etudiants-a-risque/?code_module=" + module +
                 "&code_presentation=" + session + "&jour=" + jour + "&limite=50";
@@ -278,15 +275,15 @@
 
       const total = data.resume.eleve + data.resume.moyen + data.resume.faible;
       if (total === 0) {
-        info.textContent = "Aucune donnée pour le module " + module + " en session " + session + " (cette combinaison n'existe peut-être pas).";
+        info.textContent = "No data found for module " + module + " in presentation " + session + " (this module-presentation combination may not exist).";
         return;
       }
 
-      info.textContent = total + " étudiants analysés au jour " + jour + " (les 50 plus à risque sont listés).";
+      info.textContent = total + " enrollments analyzed at cutoff day " + jour + " (the 50 highest-scoring enrollments are listed).";
       ["eleve", "moyen", "faible"].forEach(function (n) {
         const p = document.createElement("span");
         p.className = "pastille " + n;
-        p.textContent = libellesNiveau[n] + " : " + data.resume[n];
+        p.textContent = libellesNiveau[n] + ": " + data.resume[n];
         resume.appendChild(p);
       });
 
@@ -311,10 +308,10 @@
     }
     let graphCorrelation = null;
     const libellesResultat = {
-      Distinction: "Mention (Distinction)",
-      Pass: "Réussite (Pass)",
-      Fail: "Échec (Fail)",
-      Withdrawn: "Abandon (Withdrawn)"
+      Distinction: "Distinction",
+      Pass: "Pass",
+      Fail: "Fail",
+      Withdrawn: "Withdrawn"
     };
 
     async function chargerCorrelation() {
@@ -333,10 +330,10 @@
       graphCorrelation = new Chart(document.getElementById("graphCorrelation"), {
         type: "bar",
         data: {
-          labels: data.map(function (d) { return libellesResultat[d.resultat] + " (" + d.inscrits + " étudiants)"; }),
+          labels: data.map(function (d) { return libellesResultat[d.resultat] + " (" + d.inscrits + " enrollments)"; }),
           datasets: [
-            { label: "Clics moyens", data: data.map(function (d) { return d.clics_moyens; }) },
-            { label: "Clics médians", data: data.map(function (d) { return d.clics_medians; }) }
+            { label: "Mean clicks", data: data.map(function (d) { return d.clics_moyens; }) },
+            { label: "Median clicks", data: data.map(function (d) { return d.clics_medians; }) }
           ]
         },
         options: { scales: { y: { beginAtZero: true } } }
@@ -361,10 +358,10 @@
 
     toutCharger();
     
-    // ---- Assistant (chat) ----
+    // ---- Conversational assistant ----
     const zoneMessages = document.getElementById("chatMessages");
     const champQuestion = document.getElementById("chatQuestion");
-    const boutonEnvoyer = document.getElementById("chatEnvoyer");
+    const boutonSend = document.getElementById("chatSend");
 
     function ajouterMessage(texte, type) {
       const div = document.createElement("div");
@@ -381,8 +378,8 @@
 
       ajouterMessage(question, "utilisateur");
       champQuestion.value = "";
-      boutonEnvoyer.disabled = true;
-      const attente = ajouterMessage("L'assistant réfléchit... (cela peut prendre quelques dizaines de secondes)", "assistant");
+      boutonSend.disabled = true;
+      const attente = ajouterMessage("The assistant is thinking... (this may take a few seconds)", "assistant");
 
       try {
         const reponse = await fetch("/api/agent/ask/", {
@@ -400,19 +397,19 @@
         }
       } catch (e) {
         attente.remove();
-        ajouterMessage("L'assistant a mis trop de temps à répondre. Réessayez, ou vérifiez votre connexion.", "erreur");
+        ajouterMessage("The assistant took too long to respond. Please try again or check your connection.", "erreur");
       }
-      boutonEnvoyer.disabled = false;
+      boutonSend.disabled = false;
       champQuestion.focus();
     }
 
-    boutonEnvoyer.addEventListener("click", function () { envoyerQuestion(champQuestion.value); });
+    boutonSend.addEventListener("click", function () { envoyerQuestion(champQuestion.value); });
     champQuestion.addEventListener("keydown", function (e) {
-      if (e.key === "Enter" && !boutonEnvoyer.disabled) envoyerQuestion(champQuestion.value);
+      if (e.key === "Enter" && !boutonSend.disabled) envoyerQuestion(champQuestion.value);
     });
     document.querySelectorAll(".suggestion").forEach(function (b) {
       b.addEventListener("click", function () {
-        if (!boutonEnvoyer.disabled) envoyerQuestion(b.textContent);
+        if (!boutonSend.disabled) envoyerQuestion(b.textContent);
       });
     });
   </script>

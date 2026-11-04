@@ -76,6 +76,12 @@ A passed validation rule is retained as a regression check; there is nothing to 
 
 The processing logic is kept in `scripts/prepare_interactions.py`. It reads `studentVle.csv` from the raw OULAD ZIP, removes only exact duplicates, aggregates the agreed student-resource-day grain, and writes the processed interaction table. Source and processed row counts are reported so the transformation can be audited.
 
-## Next phase
+## Implementation status
 
-The source audit and interaction preparation are complete for the audited archive. Phase 6 has added the five-model Django backend, controlled import, REST API, engagement analytics, and automated tests. Phase 7 will define and validate early-withdrawal risk indicators with an explicit prediction cutoff and leakage-safe feature construction.
+The source audit and interaction preparation are complete for the audited archive. The five-model Django backend, controlled import, REST API, engagement analytics, rule-based risk indicator, dashboard, conversational agent, and automated tests have been implemented.
+
+The current risk indicator is a transparent heuristic, not a trained predictive model. Its retrospective check is limited to one course presentation and one cutoff. The current implementation also needs stricter registration-date eligibility checks; the mutually exclusive scoring rules have a maximum attainable total of 100 points. See [API, Dashboard, and Conversational Agent](api-dashboard-agent.md).
+
+The local import was validated using model counts, required relationships, and aggregate click-total reconciliation. These checks do not establish a row-by-row comparison of all imported interactions with the prepared CSV.
+
+Some grouped missingness summaries (for `imd_band`, `week_from`, and `week_to`) remain open. Missingness mechanisms have not been classified as MCAR, MAR, or MNAR.
