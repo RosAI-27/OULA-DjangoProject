@@ -65,7 +65,7 @@ The risk indicator is a transparent additive rule, calculated using data up to a
 
 Risk levels are high (`eleve`) at 60 or more, medium (`moyen`) from 30 to 59, and low (`faible`) below 30.
 
-**Scoring-scale caveat:** the current implementation adds points and does not cap the total at 100. The maximum possible score under the listed rules is 140. Therefore, the score must not be described as a percentage or a normalized 0–100 probability. The scoring specification and implementation should be aligned before any further use.
+**Scoring-scale note:** the current implementation adds points without an explicit clipping operation. However, the click-activity branches are mutually exclusive, as are the assessment-score branches. The maximum attainable total under the current rules is therefore 100 points. This is a heuristic point score, not a probability or percentage.
 
 The current cohort query excludes enrollments with an unregistration date on or before the cutoff. It does not yet fully enforce that the registration date is present and on or before the cutoff. This is a known eligibility limitation; results should not be interpreted as a fully validated at-risk cohort.
 
@@ -142,7 +142,7 @@ The tests use small synthetic records and do not call the external language mode
 
 - The risk indicator is a hand-designed rule, not a trained predictive model.
 - Registration-date eligibility is not fully enforced in the current risk cohort.
-- The additive score is not capped at 100.
+- The score is a heuristic point total, not a calibrated probability.
 - The retrospective check covers one course presentation and one cutoff.
 - The agent depends on an external model provider and a running local API.
 - The current API does not enforce authentication or authorization.
