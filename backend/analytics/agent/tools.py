@@ -12,7 +12,7 @@ DELAI_MAX_SECONDES = 120
 
 
 def _appeler_api(chemin, params):
-    """Appelle un endpoint et renvoie le JSON, ou un message d'erreur lisible."""
+    """Calls an API endpoint and returns its JSON response or a readable error."""
     params = {k: v for k, v in params.items() if v not in ("", None)}
     try:
         reponse = requests.get(
@@ -20,28 +20,22 @@ def _appeler_api(chemin, params):
         )
         return reponse.json()
     except requests.exceptions.ConnectionError:
-        return {"erreur": "Impossible de joindre l'API. Le serveur Django est-il lancé ?"}
+        return {"erreur": "Could not reach the API. Is the Django server running?"}
     except requests.exceptions.Timeout:
-        return {"erreur": "L'API a mis trop de temps à répondre."}
+        return {"erreur": "The API request timed out."}
     except ValueError:
-        return {"erreur": "La réponse de l'API n'est pas du JSON valide."}
+        return {"erreur": "The API response is not valid JSON."}
 
 
 def get_reussite_par_cours(code_presentation: str = "") -> list | dict:
-    """Donne, pour chaque module (AAA, BBB, CCC, DDD, EEE, FFF, GGG), le nombre
-    d'inscrits, le taux de réussite et le taux d'abandon en pourcentage.
-    Paramètre optionnel : code_presentation (2013B, 2013J, 2014B ou 2014J)
-    pour se limiter à une session."""
+    """Returns enrollment counts, success rates, and withdrawal rates for each module (AAA, BBB, CCC, DDD, EEE, FFF, GGG). Optional parameter: code_presentation (2013B, 2013J, 2014B, or 2014J) to restrict the results to one presentation."""
     return _appeler_api(
         "stats/reussite-par-cours/", {"code_presentation": code_presentation}
     )
 
 
 def get_engagement_par_semaine(code_module: str, code_presentation: str = "") -> list | dict:
-    """Donne l'engagement sur la plateforme semaine par semaine pour un module :
-    total de clics, nombre d'étudiants actifs et clics par étudiant actif.
-    Paramètre obligatoire : code_module (par exemple AAA).
-    Paramètre optionnel : code_presentation (2013B, 2013J, 2014B ou 2014J)."""
+    """Returns weekly platform engagement for a module: total clicks, number of active enrollments, and clicks per active enrollment. Required parameter: code_module (for example, AAA). Optional parameter: code_presentation (2013B, 2013J, 2014B, or 2014J)."""
     return _appeler_api(
         "stats/engagement-par-semaine/",
         {"code_module": code_module, "code_presentation": code_presentation},
@@ -55,12 +49,7 @@ def get_etudiants_a_risque(
     niveau: str = "",
     limite: int = 10,
 ) -> dict:
-    """Liste les étudiants à risque de décrochage d'un cours, avec un score de
-    risque de 0 à 100, un niveau (eleve, moyen, faible) et les motifs en clair
-    (activité faible, notes basses, absence récente, etc.).
-    Paramètres obligatoires : code_module et code_presentation.
-    Paramètres optionnels : jour (jour de coupure du cours, 60 par défaut),
-    niveau (eleve, moyen ou faible) et limite (nombre maximum d'étudiants)."""
+    """Lists enrollments flagged by the course risk indicator, with an additive risk score, a level (eleve, moyen, faible), and plain-language reasons (low activity, low scores, recent inactivity, and so on). The score is not a probability and is not capped at 100. Required parameters: code_module and code_presentation. Optional parameters: jour (course cutoff day, default 60), niveau (eleve, moyen, or faible), and limite (maximum number of enrollments)."""
     return _appeler_api(
         "etudiants-a-risque/",
         {
