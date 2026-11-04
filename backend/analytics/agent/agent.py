@@ -36,8 +36,8 @@ def _liste_modeles():
     modeles = [m for m in modeles if m]
     if not modeles:
         raise RuntimeError(
-            "La variable LLM_MODEL est absente du fichier .env "
-            "(exemple : google_genai:NOM_DU_MODELE)."
+            "The LLM_MODEL variable is missing from the .env file "
+            "(for example: google_genai:YOUR_SUPPORTED_MODEL_ID)."
         )
     return modeles
 
