@@ -165,13 +165,7 @@ The commands below use Windows PowerShell. On macOS or Linux, activate the virtu
    pip install -r requirements.txt
    ```
 
-2. Install the additional agent dependencies if they are not already included in your local environment:
-
-   ```powershell
-   pip install requests langchain langchain-google-genai
-   ```
-
-3. Copy `.env.example` to `.env` at the repository root. Set a local Django secret, allowed hosts, a Google AI Studio API key, and model identifiers supported by your account. **Never commit `.env` or real credentials.**
+2. Copy `.env.example` to `.env` at the repository root. Set a local Django secret and allowed hosts. To use the conversational agent, also provide a Google AI Studio API key and model identifiers supported by your account. **Never commit `.env` or real credentials.**
 
    Generate a local Django secret with:
 
@@ -179,15 +173,15 @@ The commands below use Windows PowerShell. On macOS or Linux, activate the virtu
    python -c "import secrets; print(secrets.token_urlsafe(50))"
    ```
 
-4. Place the OULAD archive at `data/raw/OULA.zip`. It must contain the original `anonymiseddata/` directory. The `data/` directory is not versioned.
+3. Place the OULAD archive at `data/raw/OULA.zip`. It must contain the original `anonymiseddata/` directory. The `data/` directory is not versioned.
 
-5. From the repository root, prepare the interactions:
+4. From the repository root, prepare the interactions:
 
    ```powershell
    python scripts/prepare_interactions.py --input data/raw/OULA.zip --output data/processed/interactions.csv
    ```
 
-6. From the `backend` directory, apply migrations and import the data:
+5. From the `backend` directory, apply migrations and import the data:
 
    ```powershell
    cd backend
@@ -197,13 +191,13 @@ The commands below use Windows PowerShell. On macOS or Linux, activate the virtu
 
    The import command stops if the database already contains data. The `--replace` option deletes existing imported data before re-importing; use it carefully. Importing the interactions can take several minutes.
 
-7. Start the server:
+6. Start the server:
 
    ```powershell
    python manage.py runserver
    ```
 
-8. Open [http://127.0.0.1:8000/dashboard/](http://127.0.0.1:8000/dashboard/).
+7. Open [http://127.0.0.1:8000/dashboard/](http://127.0.0.1:8000/dashboard/).
 
 Keep the Django server running while using the agent, because its tools call the local API.
 
