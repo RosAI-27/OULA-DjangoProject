@@ -119,7 +119,7 @@ The risk endpoint calculates an additive score at a selected day cutoff (day 60 
 
 The implemented signals include no recorded clicks, activity below a course-level lower-quartile threshold, no recent activity in the preceding 14 days, no recorded non-missing assessment score by the cutoff, and low or moderate average scores. Risk levels are high (60 or more), medium (30–59), and low (below 30).
 
-**Implementation note:** the score is additive and is not capped in the current code. Under the current rules it can exceed 100, despite earlier documentation describing it as a 0–100 score. This should be resolved in the scoring implementation or its specification before the score is presented as a percentage or normalized scale.
+**Scoring note:** although the score is additive, the current rules use mutually exclusive branches for the click and assessment signals. Their maximum combined score is 100 points. It is a heuristic point score, not a probability or percentage.
 
 The retrospective endpoint compares risk levels with final outcomes. The documented example covers module AAA, presentation 2013J, at day 60: 361 enrollments were analyzed. The proportion who ultimately failed or withdrew was 85.7% in the high-risk group (7 students), 64.3% in the medium-risk group (28 students), and 18.1% in the low-risk group (326 students), compared with 23.0% overall.
 
@@ -255,7 +255,7 @@ The tests use small synthetic records and do not call the external language mode
 - The current API does not enforce authentication or authorization.
 - The risk indicator is a transparent heuristic, not a trained or externally validated prediction model.
 - The current risk cohort does not yet enforce all registration-date eligibility conditions.
-- The risk score is not capped at 100 in the current implementation.
+- The risk score is a heuristic point total, not a calibrated probability.
 - The retrospective check covers one course presentation and one cutoff, with small high- and medium-risk groups.
 - An absence of recorded clicks is not proof that a student is not learning or engaging elsewhere.
 - OULAD comes from one institution; findings may not generalize to other institutions or learning environments.
