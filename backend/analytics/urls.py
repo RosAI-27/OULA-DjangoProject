@@ -1,33 +1,35 @@
-from django.urls import include, path
-from rest_framework.routers import DefaultRouter
+from django.urls import path
 
 from .agent_views import AgentQuestionView
-from .api_viewsets import (
-    AssessmentViewSet,
-    CourseViewSet,
-    EnrollmentViewSet,
-    StudentViewSet,
-)
 from .api_views import (
     EngagementParResultatView,
     EngagementParSemaineView,
     EtudiantsARisqueView,
-    ValidationRisqueView,
     ReussiteParCoursView,
+    ValidationRisqueView,
+)
+from .views import (
+    AssessmentListAPIView,
+    CourseEngagementAPIView,
+    CourseListAPIView,
+    CourseSuccessRateAPIView,
+    EnrollmentListAPIView,
+    StudentListAPIView,
 )
 
-router = DefaultRouter()
-router.register("courses", CourseViewSet, basename="course")
-router.register("students", StudentViewSet, basename="student")
-router.register("enrollments", EnrollmentViewSet, basename="enrollment")
-router.register("assessments", AssessmentViewSet, basename="assessment")
-
 urlpatterns = [
+    # Consultation et analyses d'engagement
+    path("courses/", CourseListAPIView.as_view(), name="course-list"),
+    path("students/", StudentListAPIView.as_view(), name="student-list"),
+    path("enrollments/", EnrollmentListAPIView.as_view(), name="enrollment-list"),
+    path("assessments/", AssessmentListAPIView.as_view(), name="assessment-list"),
+    path("analytics/engagement-by-course/", CourseEngagementAPIView.as_view(), name="course-engagement"),
+    path("analytics/success-rate-by-course/", CourseSuccessRateAPIView.as_view(), name="course-success-rate"),
+    # Statistiques du tableau de bord, score de risque et agent
     path("stats/reussite-par-cours/", ReussiteParCoursView.as_view()),
     path("stats/engagement-par-semaine/", EngagementParSemaineView.as_view()),
     path("stats/engagement-par-resultat/", EngagementParResultatView.as_view()),
     path("etudiants-a-risque/", EtudiantsARisqueView.as_view()),
     path("etudiants-a-risque/validation/", ValidationRisqueView.as_view()),
     path("agent/ask/", AgentQuestionView.as_view()),
-    path("", include(router.urls)),
 ]

@@ -1,13 +1,14 @@
 # Django backend
 
-The Django project and domain application(s) will be initialized here in a subsequent step after confirming the dataset and assignment requirements.
+The Django project and analytics application are implemented under this directory.
 
-Planned responsibilities:
-- Django settings and URL configuration
-- Domain models: Etudiant, Cours, Evaluation, Interaction
-- Database migrations and admin registration
-- Data import and validation commands
-- API endpoints after the domain layer is stable
-- Application-level tests
+The backend includes:
+- Django settings and URL configuration.
+- The analytics application with the `Student`, `Course`, `Enrollment`, `Assessment`, and `Interaction` models.
+- Database migrations and admin registration.
+- Controlled OULAD import and validation.
+- Django REST Framework serializers, filters, pagination, and endpoints.
+- Aggregated course-level engagement and success-rate analytics.
+- Automated tests for the analytics application.
 
-This folder is an architectural placeholder; the Django project has not yet been generated.
+See [architecture and implementation decisions](../docs/architecture.md) for model grain, data-quality decisions, API routes, validation evidence, and Phase 7 scope.
