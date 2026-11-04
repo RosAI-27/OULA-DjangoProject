@@ -125,6 +125,24 @@ The retrospective endpoint compares risk levels with final outcomes. The documen
 
 This is a limited descriptive check, not a general performance estimate. It covers one course presentation and one cutoff; the high- and medium-risk groups are small. The implementation also needs a stricter eligibility check for students whose registration date is missing or later than the selected cutoff. See [API, Dashboard, and Agent](docs/api-dashboard-agent.md) for the implementation details and limitations.
 
+## Future extension: a machine-learning perspective
+
+Machine learning is a possible future extension, not a component currently implemented in this project. The existing rule-based risk indicator should remain the baseline against which any predictive model is evaluated.
+
+A responsible extension could investigate whether student withdrawal can be predicted using only information available at a defined course-day cutoff. Before modelling, the team should:
+
+1. Define the prediction target and prediction horizon (for example, withdrawal after day 60).
+2. Build an eligible cohort using registration and unregistration dates, with explicit handling of missing dates.
+3. Construct features only from interactions and assessment information available by the cutoff; exclude final outcomes and all future information.
+4. Split data in a way that prevents the same student from leaking across training and test sets, and consider a time- or presentation-based holdout to assess temporal generalization.
+5. Establish a simple baseline before trying more complex models.
+6. Address class imbalance and evaluate precision, recall, F1, PR-AUC, and calibration where predicted probabilities are used. Accuracy alone is insufficient.
+7. Compare the model with the current heuristic and document subgroup performance, limitations, and the risks of using predictions in student-support decisions.
+
+Missing-value handling, categorical encoding, scaling, feature selection, and any resampling must be fitted within the training pipeline using training data only. The model should support human review rather than automate decisions about students.
+
+No predictive model, trained weights, or model-performance claim is included in the current project.
+
 ## Dashboard
 
 Open `/dashboard/` after starting the Django development server. The dashboard includes:
