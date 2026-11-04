@@ -213,7 +213,7 @@
       graphEngagement = new Chart(document.getElementById("graphEngagement"), {
         type: "line",
         data: {
-          labels: data.map(function (d) { return "S" + d.semaine; }),
+          labels: data.map(function (d) { return "W" + d.semaine; }),
           datasets: [
             { label: "Clicks per active enrollment", data: data.map(function (d) { return d.clics_par_etudiant; }) }
           ]
