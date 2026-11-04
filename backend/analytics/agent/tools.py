@@ -49,7 +49,7 @@ def get_etudiants_a_risque(
     niveau: str = "",
     limite: int = 10,
 ) -> dict:
-    """Lists enrollments flagged by the course risk indicator, with an additive risk score, a level (eleve, moyen, faible), and plain-language reasons (low activity, low scores, recent inactivity, and so on). The score is not a probability and is not capped at 100. Required parameters: code_module and code_presentation. Optional parameters: jour (course cutoff day, default 60), niveau (eleve, moyen, or faible), and limite (maximum number of enrollments)."""
+    """Lists enrollments flagged by the course risk indicator, with an additive risk score, a level (eleve, moyen, faible), and plain-language reasons (low activity, low scores, recent inactivity, and so on). The maximum attainable score under the mutually exclusive rules is 100 points; it is not a probability. Required parameters: code_module and code_presentation. Optional parameters: jour (course cutoff day, default 60), niveau (eleve, moyen, or faible), and limite (maximum number of enrollments)."""
     return _appeler_api(
         "etudiants-a-risque/",
         {
