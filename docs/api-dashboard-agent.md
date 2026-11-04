@@ -138,6 +138,22 @@ python manage.py test analytics
 
 The tests use small synthetic records and do not call the external language model. They cover the course analytics endpoints, dashboard statistics, risk-score rules and ordering, cutoff-based exclusion, retrospective validation, and basic agent-request validation.
 
+## Possible future extension: machine learning
+
+The current project uses a transparent rule-based risk indicator. A trained predictive model is a possible future research extension, not an implemented feature or a requirement for the current application.
+
+A future study could define a cutoff-based task such as predicting withdrawal after day 60. It should first establish a valid cohort of students registered by the cutoff and handle missing registration dates explicitly. Features must use only information available at prediction time; final outcomes and post-cutoff interactions or assessment submissions must be excluded.
+
+A defensible modelling workflow should:
+- Use the existing heuristic and a simple statistical model as baselines.
+- Split data by student to prevent repeated enrollments from leaking across partitions; add a presentation- or time-based holdout where feasible to examine generalization.
+- Fit imputation, encoding, scaling, feature selection, and any resampling on training data only, preferably in a reproducible pipeline.
+- Address class imbalance and report precision, recall, F1, PR-AUC, and calibration when probabilities are produced, rather than relying on accuracy alone.
+- Compare model performance with the current heuristic and inspect errors and subgroup performance.
+- Document uncertainty, dataset limitations, fairness considerations, and the need for human oversight.
+
+Any model should be evaluated as a decision-support aid, not as an automated mechanism for labeling or making decisions about individual students. No trained model or predictive-performance claim is part of the current project.
+
 ## Limitations
 
 - The risk indicator is a hand-designed rule, not a trained predictive model.
