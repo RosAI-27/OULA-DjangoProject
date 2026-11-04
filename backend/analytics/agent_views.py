@@ -5,7 +5,7 @@ from .agent.agent import poser_question
 
 
 class AgentQuestionView(APIView):
-    """Accepts a question and returns a response.."""
+    """Accepts a question and returns a response."""
 
     authentication_classes = []
     permission_classes = []
